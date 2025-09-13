@@ -1,0 +1,26 @@
+{
+  "name": "duallens",
+  "version": "1.0.0",
+  "description": "AI Apartment Hunting Assistant with dual perspective debates",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "convex:dev": "convex dev",
+    "convex:deploy": "convex deploy",
+    "convex:import": "convex import --table properties data/Zillow_Austin_11-16-22.csv"
+  },
+  "dependencies": {
+    "convex": "^1.27.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.8"
+  }
+}
