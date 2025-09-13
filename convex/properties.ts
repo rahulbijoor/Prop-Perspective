@@ -27,3 +27,77 @@ export const getByIdAction = action({
     return await ctx.db.get(args.id);
   },
 });
+
+export const getRankedProperties = query({
+  args: { 
+    maxBudget: v.number(), 
+    minBeds: v.number(), 
+    minBaths: v.optional(v.number()) 
+  },
+  handler: async (ctx: QueryCtx, args: { maxBudget: number; minBeds: number; minBaths?: number }) => {
+    // Input validation
+    if (args.maxBudget < 0 || isNaN(args.maxBudget)) {
+      throw new Error("Invalid maxBudget: must be a positive number");
+    }
+    if (args.minBeds < 0 || isNaN(args.minBeds)) {
+      throw new Error("Invalid minBeds: must be a non-negative number");
+    }
+    if (args.minBaths !== undefined && (args.minBaths < 0 || isNaN(args.minBaths))) {
+      throw new Error("Invalid minBaths: must be a non-negative number");
+    }
+
+    // Clamp maxBudget to reasonable bounds
+    const clampedMaxBudget = Math.min(args.maxBudget, 50000);
+
+    // Fetch all properties
+    const all = await ctx.db.query("properties").collect();
+
+    // Filter properties
+    const filtered = all.filter(p => {
+      // Coerce price with fallback
+      const price = p.unformattedPrice ?? Number.MAX_SAFE_INTEGER;
+      // Coerce beds and baths with fallbacks
+      const beds = p.beds ?? 0;
+      const baths = p.baths ?? 0;
+
+      // Apply filters
+      const withinBudget = price <= clampedMaxBudget;
+      const hasEnoughBeds = beds >= args.minBeds;
+      const hasEnoughBaths = args.minBaths != null ? baths >= args.minBaths : true;
+
+      return withinBudget && hasEnoughBeds && hasEnoughBaths;
+    });
+
+    // Score and rank properties
+    const scored = filtered.map(p => {
+      const price = p.unformattedPrice ?? Number.MAX_SAFE_INTEGER;
+      const beds = p.beds ?? 0;
+
+      // Calculate scoring components
+      const priceEfficiency = Math.max(0, (clampedMaxBudget - price) / clampedMaxBudget);
+      const bedroomRaw = beds >= args.minBeds ? 1 + 0.1 * (beds - args.minBeds) : 0;
+      const bedroomMatch = Math.min(1, bedroomRaw);
+      
+      // Calculate final score
+      const score = 0.7 * priceEfficiency + 0.3 * bedroomMatch;
+
+      return {
+        ...p,
+        score,
+        scoreBreakdown: {
+          priceEfficiency,
+          bedroomMatch
+        }
+      };
+    });
+
+    // Sort by score descending and add rank
+    const sorted = scored.sort((a, b) => b.score - a.score);
+    const ranked = sorted.map((p, idx) => ({
+      ...p,
+      rank: idx + 1
+    }));
+
+    return ranked;
+  },
+});

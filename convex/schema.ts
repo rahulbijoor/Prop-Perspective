@@ -26,5 +26,7 @@ export default defineSchema({
     zestimate: v.optional(v.number()),
     info3String: v.optional(v.string()),
     brokerName: v.optional(v.string()),
-  }),
+  })
+    .index('by_unformattedPrice', ['unformattedPrice'])
+    .index('by_beds', ['beds']),
 });

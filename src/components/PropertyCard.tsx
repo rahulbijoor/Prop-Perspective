@@ -1,30 +1,8 @@
-import type { Id } from '../../convex/_generated/dataModel';
-interface Property {
-  _id: Id<'properties'>;
-  price?: string;
-  unformattedPrice?: number;
-  address?: string;
-  addressStreet?: string;
-  addressCity?: string;
-  addressState?: string;
-  addressZipcode?: string;
-  beds?: number;
-  baths?: number;
-  area?: number;
-  latitude?: number;
-  longitude?: number;
-  isZillowOwned?: boolean;
-  variableData?: string;
-  badgeInfo?: string;
-  pgapt?: string;
-  sgapt?: string;
-  zestimate?: number;
-  info3String?: string;
-  brokerName?: string;
-}
+import type { RankedProperty } from '../types/property';
+import { formatScore } from '../lib/utils';
 
 interface PropertyCardProps {
-  property: Property;
+  property: RankedProperty;
 }
 
 function PropertyCard({ property }: PropertyCardProps) {
@@ -46,17 +24,32 @@ function PropertyCard({ property }: PropertyCardProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow relative">
+      {/* Rank Badge */}
+      {property.rank && (
+        <div className="absolute top-3 right-3 bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full">
+          #{property.rank}
+        </div>
+      )}
+      
       <div className="p-6">
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-lg font-semibold text-gray-900">
             {formatPrice(property.price, property.unformattedPrice)}
           </h3>
-          {property.isZillowOwned && (
-            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
-              Zillow Owned
-            </span>
-          )}
+          <div className="flex flex-col items-end gap-2">
+            {property.isZillowOwned && (
+              <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                Zillow Owned
+              </span>
+            )}
+            {/* Score Badge */}
+            {property.score !== undefined && (
+              <span className="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                Score: {formatScore(property.score)}
+              </span>
+            )}
+          </div>
         </div>
 
         <p className="text-gray-600 mb-4">{formatAddress()}</p>
@@ -95,6 +88,23 @@ function PropertyCard({ property }: PropertyCardProps) {
           <div className="mb-4">
             <div className="text-sm text-gray-600 mb-1">Market Info</div>
             <div className="text-sm text-gray-800">{property.variableData}</div>
+          </div>
+        )}
+
+        {/* Score Breakdown */}
+        {property.scoreBreakdown && (
+          <div className="mb-4 p-3 bg-purple-50 rounded border border-purple-200">
+            <div className="text-sm font-medium text-purple-900 mb-2">Score Breakdown</div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span className="text-gray-600">Price Efficiency:</span>
+                <span className="ml-1 font-medium">{formatScore(property.scoreBreakdown.priceEfficiency)}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Bedroom Match:</span>
+                <span className="ml-1 font-medium">{formatScore(property.scoreBreakdown.bedroomMatch)}</span>
+              </div>
+            </div>
           </div>
         )}
 
