@@ -3,8 +3,10 @@ import { api } from '../convex/_generated/api'
 import { useState, useEffect } from 'react'
 import PropertyCard from './components/PropertyCard'
 import PropertyFilters from './components/PropertyFilters'
+import DebateView from './components/DebateView'
 import { DEFAULT_BUDGET, DEFAULT_MIN_BEDS, DEFAULT_MIN_BATHS, debounce } from './lib/utils'
 import type { RankedProperty } from './types/property'
+import type { DebateResponse } from './types/debate'
 
 function App() {
   // Filter state for immediate UI updates
@@ -16,6 +18,10 @@ function App() {
   const [debBudget, setDebBudget] = useState(budget);
   const [debBeds, setDebBeds] = useState(minBeds);
   const [debBaths, setDebBaths] = useState(minBaths);
+
+  // Debate state
+  const [activeDebate, setActiveDebate] = useState<DebateResponse | null>(null);
+  const [selectedProperty, setSelectedProperty] = useState<RankedProperty | null>(null);
 
   // Debounce the query arguments
   useEffect(() => {
@@ -45,6 +51,29 @@ function App() {
     setMinBeds(DEFAULT_MIN_BEDS);
     setMinBaths(DEFAULT_MIN_BATHS);
   };
+
+  const handleDebateStart = (debate: DebateResponse, property: RankedProperty) => {
+    setActiveDebate(debate);
+    setSelectedProperty(property);
+  };
+
+  const handleCloseDebate = () => {
+    setActiveDebate(null);
+    setSelectedProperty(null);
+  };
+
+  // If there's an active debate, show the debate view
+  if (activeDebate && selectedProperty) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <DebateView
+          debate={activeDebate}
+          property={selectedProperty}
+          onClose={handleCloseDebate}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -101,18 +130,23 @@ function App() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {properties.map((property: RankedProperty) => (
-              <PropertyCard key={property._id} property={property} />
+              <PropertyCard 
+                key={property._id} 
+                property={property} 
+                onDebateStart={handleDebateStart}
+              />
             ))}
           </div>
         )}
 
         <div className="mt-12 bg-white rounded-lg shadow-sm border p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            Coming Soon: AI Debate Feature
+            🎯 AI Debate Feature Now Available!
           </h3>
           <p className="text-gray-600">
-            Get dual perspectives on properties with AI-powered debates between 
-            different viewpoints to help you make informed decisions.
+            Click "Start AI Debate" on any property card to get dual perspectives 
+            with AI-powered debates between different viewpoints to help you make 
+            informed investment decisions.
           </p>
         </div>
       </main>

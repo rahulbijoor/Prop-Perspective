@@ -101,3 +101,63 @@ export const getRankedProperties = query({
     return ranked;
   },
 });
+
+export const generateDebate = action({
+  args: { propertyId: v.id("properties") },
+  handler: async (ctx: ActionCtx, args: { propertyId: any }) => {
+    try {
+      // Fetch the property data
+      const property = await ctx.db.get(args.propertyId);
+      if (!property) {
+        throw new Error("Property not found");
+      }
+
+      // Get the debate service URL from environment variables
+      const debateServiceUrl = ctx.env.DEBATE_SERVICE_URL || "http://localhost:8000";
+
+      // Transform property data to match the Python service expected format
+      const debateRequest = {
+        property_id: args.propertyId,
+        address: property.address || "Unknown Address",
+        price: property.unformattedPrice || property.price || 0,
+        bedrooms: property.beds || 0,
+        bathrooms: property.baths || 0,
+        sqft: property.sqft || 0,
+        lot_size: property.lotSize || undefined,
+        year_built: property.yearBuilt || undefined,
+        property_type: property.propertyType || "Single Family Home",
+        neighborhood: property.neighborhood || undefined,
+        additional_context: `Property listing from ${property.source || "Zillow"}`
+      };
+
+      // Call the Python debate service
+      const response = await fetch(`${debateServiceUrl}/debate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(debateRequest),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Debate service error: ${response.status} - ${errorText}`);
+      }
+
+      const debateResponse = await response.json();
+
+      // Validate the response structure
+      if (!debateResponse.pro_arguments || !debateResponse.con_arguments) {
+        throw new Error("Invalid debate response format");
+      }
+
+      // Add property ID to the response for consistency
+      debateResponse.property_id = args.propertyId;
+
+      return debateResponse;
+    } catch (error) {
+      console.error("Error generating debate:", error);
+      throw new Error(`Failed to generate debate: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  },
+});

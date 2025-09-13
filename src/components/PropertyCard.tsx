@@ -1,11 +1,14 @@
 import type { RankedProperty } from '../types/property';
+import type { DebateResponse } from '../types/debate';
 import { formatScore, formatZip } from '../lib/utils';
+import DebateTrigger from './DebateTrigger';
 
 interface PropertyCardProps {
   property: RankedProperty;
+  onDebateStart?: (debate: DebateResponse, property: RankedProperty) => void;
 }
 
-function PropertyCard({ property }: PropertyCardProps) {
+function PropertyCard({ property, onDebateStart }: PropertyCardProps) {
   const formatPrice = (price?: number, unformattedPrice?: number) => {
     if (price) return `$${price.toLocaleString()}`;
     if (unformattedPrice) return `$${unformattedPrice.toLocaleString()}`;
@@ -109,8 +112,18 @@ function PropertyCard({ property }: PropertyCardProps) {
         )}
 
         {property.brokerName && (
-          <div className="text-xs text-gray-500 mt-4">
+          <div className="text-xs text-gray-500 mb-4">
             Listed by: {property.brokerName}
+          </div>
+        )}
+
+        {/* Debate Integration */}
+        {onDebateStart && property._id && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <DebateTrigger
+              propertyId={property._id}
+              onDebateStart={(debate) => onDebateStart(debate, property)}
+            />
           </div>
         )}
       </div>
