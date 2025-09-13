@@ -12,7 +12,7 @@ export default defineSchema({
     addressStreet: v.optional(v.string()),
     addressCity: v.optional(v.string()),
     addressState: v.optional(v.string()),
-    addressZipcode: v.optional(v.string()),
+    addressZipcode: v.optional(v.union(v.string(), v.number())),
     beds: v.optional(v.number()),
     baths: v.optional(v.number()),
     area: v.optional(v.number()),

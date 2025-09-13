@@ -53,7 +53,7 @@ export const getRankedProperties = query({
     const all = await ctx.db.query("properties").collect();
 
     // Filter properties
-    const filtered = all.filter(p => {
+    const filtered = all.filter((p: any) => {
       // Coerce price with fallback
       const price = p.unformattedPrice ?? Number.MAX_SAFE_INTEGER;
       // Coerce beds and baths with fallbacks
@@ -69,7 +69,7 @@ export const getRankedProperties = query({
     });
 
     // Score and rank properties
-    const scored = filtered.map(p => {
+    const scored = filtered.map((p: any) => {
       const price = p.unformattedPrice ?? Number.MAX_SAFE_INTEGER;
       const beds = p.beds ?? 0;
 
@@ -92,8 +92,8 @@ export const getRankedProperties = query({
     });
 
     // Sort by score descending and add rank
-    const sorted = scored.sort((a, b) => b.score - a.score);
-    const ranked = sorted.map((p, idx) => ({
+    const sorted = scored.sort((a: any, b: any) => b.score - a.score);
+    const ranked = sorted.map((p: any, idx: number) => ({
       ...p,
       rank: idx + 1
     }));

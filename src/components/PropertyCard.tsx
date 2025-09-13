@@ -1,5 +1,5 @@
 import type { RankedProperty } from '../types/property';
-import { formatScore } from '../lib/utils';
+import { formatScore, formatZip } from '../lib/utils';
 
 interface PropertyCardProps {
   property: RankedProperty;
@@ -18,8 +18,8 @@ function PropertyCard({ property }: PropertyCardProps) {
       property.addressStreet,
       property.addressCity,
       property.addressState,
-      property.addressZipcode
-    ].filter(Boolean);
+      formatZip(property.addressZipcode),
+    ].filter(Boolean).map(String);
     return parts.length > 0 ? parts.join(', ') : 'Address not available';
   };
 

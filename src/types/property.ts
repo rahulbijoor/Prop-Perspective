@@ -8,7 +8,7 @@ export interface Property {
   addressStreet?: string;
   addressCity?: string;
   addressState?: string;
-  addressZipcode?: string;
+  addressZipcode?: string | number;
   beds?: number;
   baths?: number;
   area?: number;
