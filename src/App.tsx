@@ -1,22 +1,43 @@
 import { useQuery } from 'convex/react'
 import { api } from '../convex/_generated/api'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import PropertyCard from './components/PropertyCard'
 import PropertyFilters from './components/PropertyFilters'
 import { DEFAULT_BUDGET, DEFAULT_MIN_BEDS, DEFAULT_MIN_BATHS, debounce } from './lib/utils'
 import type { RankedProperty } from './types/property'
 
 function App() {
-  // Filter state
+  // Filter state for immediate UI updates
   const [budget, setBudget] = useState(DEFAULT_BUDGET);
   const [minBeds, setMinBeds] = useState(DEFAULT_MIN_BEDS);
   const [minBaths, setMinBaths] = useState(DEFAULT_MIN_BATHS);
 
-  // Use ranked properties query
+  // Debounced mirrors for query
+  const [debBudget, setDebBudget] = useState(budget);
+  const [debBeds, setDebBeds] = useState(minBeds);
+  const [debBaths, setDebBaths] = useState(minBaths);
+
+  // Debounce the query arguments
+  useEffect(() => {
+    const debouncedUpdate = debounce(() => setDebBudget(budget), 300);
+    debouncedUpdate();
+  }, [budget]);
+
+  useEffect(() => {
+    const debouncedUpdate = debounce(() => setDebBeds(minBeds), 300);
+    debouncedUpdate();
+  }, [minBeds]);
+
+  useEffect(() => {
+    const debouncedUpdate = debounce(() => setDebBaths(minBaths), 300);
+    debouncedUpdate();
+  }, [minBaths]);
+
+  // Use ranked properties query with debounced values
   const properties = useQuery(api.properties.getRankedProperties, {
-    maxBudget: budget,
-    minBeds,
-    minBaths
+    maxBudget: debBudget,
+    minBeds: debBeds,
+    minBaths: debBaths
   });
 
   const handleReset = () => {
