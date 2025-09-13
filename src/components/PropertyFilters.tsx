@@ -49,16 +49,16 @@ function PropertyFilters({
           <input
             id="budget"
             type="range"
-            min={500}
-            max={10000}
-            step={50}
+            min={100000}
+            max={1000000}
+            step={10000}
             value={budget}
             onChange={(e) => setBudget(Number(e.target.value))}
             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
           />
           <div className="flex justify-between text-xs text-gray-500 mt-1">
-            <span>$500</span>
-            <span>$10,000</span>
+            <span>$100K</span>
+            <span>$1M</span>
           </div>
         </div>
 

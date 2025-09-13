@@ -6,7 +6,7 @@ import { v } from "convex/values";
 
 export default defineSchema({
   properties: defineTable({
-    price: v.optional(v.string()),
+    price: v.optional(v.number()),
     unformattedPrice: v.optional(v.number()),
     address: v.optional(v.string()),
     addressStreet: v.optional(v.string()),
@@ -18,7 +18,7 @@ export default defineSchema({
     area: v.optional(v.number()),
     latitude: v.optional(v.number()),
     longitude: v.optional(v.number()),
-    isZillowOwned: v.optional(v.boolean()),
+    isZillowOwned: v.optional(v.union(v.boolean(), v.string())),
     variableData: v.optional(v.string()),
     badgeInfo: v.optional(v.string()),
     pgapt: v.optional(v.string()),

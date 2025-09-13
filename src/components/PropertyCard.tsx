@@ -6,8 +6,8 @@ interface PropertyCardProps {
 }
 
 function PropertyCard({ property }: PropertyCardProps) {
-  const formatPrice = (price?: string, unformattedPrice?: number) => {
-    if (price) return price;
+  const formatPrice = (price?: number, unformattedPrice?: number) => {
+    if (price) return `$${price.toLocaleString()}`;
     if (unformattedPrice) return `$${unformattedPrice.toLocaleString()}`;
     return 'Price not available';
   };

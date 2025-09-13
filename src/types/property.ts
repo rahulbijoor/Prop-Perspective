@@ -2,7 +2,7 @@ import type { Id } from '../../convex/_generated/dataModel';
 
 export interface Property {
   _id: Id<'properties'>;
-  price?: string;
+  price?: number;
   unformattedPrice?: number;
   address?: string;
   addressStreet?: string;

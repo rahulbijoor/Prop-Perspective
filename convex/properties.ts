@@ -47,7 +47,7 @@ export const getRankedProperties = query({
     }
 
     // Clamp maxBudget to reasonable bounds
-    const clampedMaxBudget = Math.min(args.maxBudget, 50000);
+    const clampedMaxBudget = Math.min(args.maxBudget, 2000000);
 
     // Fetch all properties
     const all = await ctx.db.query("properties").collect();
