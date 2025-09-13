@@ -113,31 +113,50 @@ export const generateDebate = action({
       }
 
       // Get the debate service URL from environment variables
-      const debateServiceUrl = ctx.env.DEBATE_SERVICE_URL || "http://localhost:8000";
+      const debateServiceUrl = 'http://localhost:8000';
+      const base = debateServiceUrl.replace(/\/$/, '');
 
       // Transform property data to match the Python service expected format
+      const address = property.address ?? [
+        property.addressStreet, 
+        property.addressCity, 
+        property.addressState, 
+        property.addressZipcode?.toString()
+      ]
+        .filter(Boolean)
+        .join(', ');
+
       const debateRequest = {
         property_id: args.propertyId,
-        address: property.address || "Unknown Address",
-        price: property.unformattedPrice || property.price || 0,
-        bedrooms: property.beds || 0,
-        bathrooms: property.baths || 0,
-        sqft: property.sqft || 0,
-        lot_size: property.lotSize || undefined,
-        year_built: property.yearBuilt || undefined,
-        property_type: property.propertyType || "Single Family Home",
-        neighborhood: property.neighborhood || undefined,
-        additional_context: `Property listing from ${property.source || "Zillow"}`
+        address,
+        price: property.unformattedPrice ?? property.price ?? 0,
+        bedrooms: property.beds ?? 0,
+        bathrooms: property.baths ?? 0,
+        sqft: property.area ?? 0,
+        property_type: 'Single Family Home',
+        additional_context: 'Property listing data',
       };
 
-      // Call the Python debate service
-      const response = await fetch(`${debateServiceUrl}/debate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(debateRequest),
-      });
+      // Call the Python debate service with timeout
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000); // 60s
+      
+      let response;
+      try {
+        response = await fetch(`${base}/debate`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(debateRequest),
+          signal: controller.signal
+        });
+      } catch (e) {
+        if ((e as any).name === 'AbortError') throw new Error('Debate service timeout');
+        throw e;
+      } finally {
+        clearTimeout(timeout);
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -147,8 +166,10 @@ export const generateDebate = action({
       const debateResponse = await response.json();
 
       // Validate the response structure
-      if (!debateResponse.pro_arguments || !debateResponse.con_arguments) {
-        throw new Error("Invalid debate response format");
+      if (!debateResponse || !debateResponse.pro_arguments || !debateResponse.con_arguments ||
+          !debateResponse.summary || !debateResponse.recommendation ||
+          typeof debateResponse.confidence_score !== 'number' || !debateResponse.market_insights) {
+        throw new Error('Invalid debate response format');
       }
 
       // Add property ID to the response for consistency

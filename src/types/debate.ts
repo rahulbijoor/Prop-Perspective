@@ -1,4 +1,6 @@
 // TypeScript interfaces for the debate system that mirror the Python models
+import type { Id } from '../../convex/_generated/dataModel';
+import type { RankedProperty } from './property';
 
 export enum ArgumentType {
   PRO = 'pro',
@@ -70,11 +72,11 @@ export interface DebateRequest {
 export interface DebateViewProps {
   debate: DebateResponse;
   onClose: () => void;
-  property: any; // Will be typed based on existing property type
+  property: RankedProperty;
 }
 
 export interface DebateTriggerProps {
-  propertyId: string;
+  propertyId: Id<'properties'>;
   onDebateStart: (debate: DebateResponse) => void;
   disabled?: boolean;
 }

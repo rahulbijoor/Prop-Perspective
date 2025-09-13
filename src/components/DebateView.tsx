@@ -1,11 +1,15 @@
 import React from 'react';
-import type { DebateViewProps, DebateArgument, ArgumentType } from '../types/debate';
+import type { DebateViewProps, DebateArgument, ArgumentType, MarketInsights } from '../types/debate';
 import { ArgumentType as ArgType } from '../types/debate';
+import { 
+  formatConfidenceScore, 
+  getConfidenceColor, 
+  formatArgumentStrength 
+} from '../lib/utils';
 
 const ArgumentCard: React.FC<{ argument: DebateArgument; type: ArgumentType; index: number }> = ({ 
   argument, 
-  type, 
-  index 
+  type
 }) => {
   const isProArgument = type === ArgType.PRO;
   
@@ -22,7 +26,7 @@ const ArgumentCard: React.FC<{ argument: DebateArgument; type: ArgumentType; ind
             ? 'bg-green-100 text-green-800' 
             : 'bg-red-100 text-red-800'
         }`}>
-          Strength: {Math.round(argument.strength * 100)}%
+          Strength: {formatArgumentStrength(argument.strength)}
         </div>
       </div>
       
@@ -45,7 +49,7 @@ const ArgumentCard: React.FC<{ argument: DebateArgument; type: ArgumentType; ind
   );
 };
 
-const MarketInsightsPanel: React.FC<{ insights: any }> = ({ insights }) => {
+const MarketInsightsPanel: React.FC<{ insights: MarketInsights }> = ({ insights }) => {
   return (
     <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
       <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
@@ -102,11 +106,7 @@ const MarketInsightsPanel: React.FC<{ insights: any }> = ({ insights }) => {
 };
 
 const DebateView: React.FC<DebateViewProps> = ({ debate, onClose, property }) => {
-  const confidenceColor = debate.confidence_score >= 0.8 
-    ? 'text-green-600' 
-    : debate.confidence_score >= 0.6 
-    ? 'text-yellow-600' 
-    : 'text-red-600';
+  const confidenceColor = getConfidenceColor(debate.confidence_score);
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -131,7 +131,7 @@ const DebateView: React.FC<DebateViewProps> = ({ debate, onClose, property }) =>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900">Debate Summary</h2>
           <div className={`text-lg font-bold ${confidenceColor}`}>
-            Confidence: {Math.round(debate.confidence_score * 100)}%
+            Confidence: {formatConfidenceScore(debate.confidence_score)}
           </div>
         </div>
         

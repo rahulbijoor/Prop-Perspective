@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useAction } from 'convex/react';
 import { api } from '../../convex/_generated/api';
+import type { Id } from '../../convex/_generated/dataModel';
 import type { DebateResponse, DebateState } from '../types/debate';
 
 export const useDebate = () => {
@@ -12,39 +13,51 @@ export const useDebate = () => {
   });
 
   const generateDebateAction = useAction(api.properties.generateDebate);
+  
+  // Caching and request deduplication
+  const cache = useRef(new Map<Id<'properties'>, DebateResponse>());
+  const inflight = useRef(new Map<Id<'properties'>, Promise<DebateResponse>>());
+  
+  // Guard against out-of-order responses
+  const reqId = useRef(0);
 
-  const startDebate = useCallback(async (propertyId: string) => {
-    setDebateState(prev => ({
-      ...prev,
-      isLoading: true,
-      isGenerating: true,
-      error: null,
-    }));
+  const startDebate = useCallback(async (propertyId: Id<'properties'>) => {
+    // Check cache first
+    const cached = cache.current.get(propertyId);
+    if (cached) return cached;
+    
+    // Check if request is already in flight
+    const pending = inflight.current.get(propertyId);
+    if (pending) return pending;
 
-    try {
-      const debateResponse = await generateDebateAction({ propertyId });
-      
-      setDebateState(prev => ({
-        ...prev,
-        isLoading: false,
-        isGenerating: false,
-        debate: debateResponse as DebateResponse,
-        error: null,
-      }));
+    // Create new request with order tracking
+    const current = ++reqId.current;
+    const p = (async () => {
+      setDebateState(s => ({ ...s, isLoading: true, isGenerating: true, error: null }));
+      try {
+        const res = await generateDebateAction({ propertyId });
+        cache.current.set(propertyId, res as DebateResponse);
+        
+        // Only update state if this is still the current request
+        if (reqId.current === current) {
+          setDebateState(s => ({ ...s, isLoading: false, isGenerating: false, debate: res as DebateResponse }));
+        }
+        
+        return res as DebateResponse;
+      } catch (error) {
+        // Only update error state if this is still the current request
+        if (reqId.current === current) {
+          const errorMessage = error instanceof Error ? error.message : 'Failed to generate debate';
+          setDebateState(s => ({ ...s, isLoading: false, isGenerating: false, error: errorMessage }));
+        }
+        throw error;
+      } finally {
+        inflight.current.delete(propertyId);
+      }
+    })();
 
-      return debateResponse as DebateResponse;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate debate';
-      
-      setDebateState(prev => ({
-        ...prev,
-        isLoading: false,
-        isGenerating: false,
-        error: errorMessage,
-      }));
-
-      throw error;
-    }
+    inflight.current.set(propertyId, p);
+    return p;
   }, [generateDebateAction]);
 
   const clearDebate = useCallback(() => {
@@ -63,7 +76,7 @@ export const useDebate = () => {
     }));
   }, []);
 
-  const retryDebate = useCallback(async (propertyId: string) => {
+  const retryDebate = useCallback(async (propertyId: Id<'properties'>) => {
     clearError();
     return await startDebate(propertyId);
   }, [startDebate, clearError]);

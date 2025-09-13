@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import PropertyCard from './components/PropertyCard'
 import PropertyFilters from './components/PropertyFilters'
 import DebateView from './components/DebateView'
-import { DEFAULT_BUDGET, DEFAULT_MIN_BEDS, DEFAULT_MIN_BATHS, debounce } from './lib/utils'
+import ErrorBoundary from './components/ErrorBoundary'
+import { DEFAULT_BUDGET, DEFAULT_MIN_BEDS, DEFAULT_MIN_BATHS } from './lib/utils'
 import type { RankedProperty } from './types/property'
 import type { DebateResponse } from './types/debate'
 
@@ -25,18 +26,18 @@ function App() {
 
   // Debounce the query arguments
   useEffect(() => {
-    const debouncedUpdate = debounce(() => setDebBudget(budget), 300);
-    debouncedUpdate();
+    const id = setTimeout(() => setDebBudget(budget), 300);
+    return () => clearTimeout(id);
   }, [budget]);
 
   useEffect(() => {
-    const debouncedUpdate = debounce(() => setDebBeds(minBeds), 300);
-    debouncedUpdate();
+    const id = setTimeout(() => setDebBeds(minBeds), 300);
+    return () => clearTimeout(id);
   }, [minBeds]);
 
   useEffect(() => {
-    const debouncedUpdate = debounce(() => setDebBaths(minBaths), 300);
-    debouncedUpdate();
+    const id = setTimeout(() => setDebBaths(minBaths), 300);
+    return () => clearTimeout(id);
   }, [minBaths]);
 
   // Use ranked properties query with debounced values
@@ -66,11 +67,13 @@ function App() {
   if (activeDebate && selectedProperty) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <DebateView
-          debate={activeDebate}
-          property={selectedProperty}
-          onClose={handleCloseDebate}
-        />
+        <ErrorBoundary fallback={<div className="p-4">Failed to render debate.</div>}>
+          <DebateView
+            debate={activeDebate}
+            property={selectedProperty}
+            onClose={handleCloseDebate}
+          />
+        </ErrorBoundary>
       </div>
     );
   }
