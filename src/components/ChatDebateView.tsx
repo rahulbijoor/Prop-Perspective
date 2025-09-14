@@ -1,83 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import type { DebateViewProps, DebateResponse } from '../types/debate';
-import { formatConfidenceScore, getConfidenceColor } from '../lib/utils';
-
-interface ChatMessage {
-  id: string;
-  agent: 'investor' | 'risk';
-  message: string;
-  timestamp: Date;
-  confidence?: number;
-}
+import type { DebateViewProps} from '../types/debate';
+import { formatConfidenceScore} from '../lib/utils';
+import { chatMessageGenerator, type ChatMessage } from '../lib/chat-message-generator';
 
 const ChatDebateView: React.FC<DebateViewProps> = ({ debate, onClose, property }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState<'investor' | 'risk' | null>(null);
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
 
-  // Convert debate arguments into chat messages
-  const chatScript: Omit<ChatMessage, 'id' | 'timestamp'>[] = [
-    {
-      agent: 'investor',
-      message: "Hey there! I've been analyzing this property and I'm really excited about what I'm seeing. This looks like a fantastic investment opportunity!",
-      confidence: 95
-    },
-    {
-      agent: 'risk',
-      message: "Hold on a second... I need to pump the brakes here. While I appreciate your enthusiasm, there are some serious concerns we need to discuss about this property.",
-      confidence: 88
-    },
-    {
-      agent: 'investor',
-      message: `Let me break down why this is such a great deal: ${debate.pro_arguments[0]?.content.split('•').slice(1, 4).join(' ').trim()}`,
-      confidence: debate.pro_arguments[0]?.strength || 90
-    },
-    {
-      agent: 'risk',
-      message: `I hear you, but here's what worries me: ${debate.con_arguments[0]?.content.split('•').slice(1, 4).join(' ').trim()}`,
-      confidence: debate.con_arguments[0]?.strength || 85
-    },
-    {
-      agent: 'investor',
-      message: "Those are valid concerns, but look at the bigger picture! Austin's market fundamentals are incredibly strong. We're seeing consistent growth, major tech companies moving in, and the infrastructure investments are massive.",
-      confidence: 92
-    },
-    {
-      agent: 'risk',
-      message: "But that's exactly my point - when everyone's saying the same thing about 'strong fundamentals,' that's often when you should be most cautious. Markets can turn quickly, especially in tech-heavy areas.",
-      confidence: 87
-    },
-    {
-      agent: 'investor',
-      message: `The numbers don't lie though. At $${debate.market_insights.price_per_sqft}/sqft, this property is positioned perfectly in the market. The rental potential alone makes this a cash-flowing asset from day one.`,
-      confidence: 89
-    },
-    {
-      agent: 'risk',
-      message: "Cash flow projections are great on paper, but what about the hidden costs? Property taxes are rising fast in Austin, insurance costs are climbing, and maintenance on older properties can eat into those returns quickly.",
-      confidence: 84
-    },
-    {
-      agent: 'investor',
-      message: "You're right to consider those factors, but that's why this property stands out - it's been well-maintained and upgraded. Plus, the location gives us multiple exit strategies if needed.",
-      confidence: 88
-    },
-    {
-      agent: 'risk',
-      message: "I'll give you that the location is solid, but I still think we need to be realistic about the risks. Market timing, interest rates, potential oversupply... there are a lot of variables here.",
-      confidence: 82
-    },
-    {
-      agent: 'investor',
-      message: "Fair points all around. But here's my final thought - in real estate, you make money when you buy, not when you sell. This property gives us that opportunity.",
-      confidence: 91
-    },
-    {
-      agent: 'risk',
-      message: "And my final thought is this - it's better to miss a good deal than to get stuck in a bad one. We need to make sure we're not letting FOMO drive our decision-making here.",
-      confidence: 86
-    }
-  ];
+  // Generate dynamic chat messages from actual debate response
+  const chatScript = chatMessageGenerator.generateChatMessages(debate);
 
   useEffect(() => {
     if (currentMessageIndex < chatScript.length) {

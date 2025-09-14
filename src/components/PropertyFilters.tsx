@@ -8,7 +8,7 @@ interface PropertyFiltersProps {
   minBaths?: number;
   setMinBaths?: (n: number) => void;
   minSqft?: number;
-  setMinSqft?: (n: number | undefined) => void;
+  setMinSqft?: (n: number) => void;
   onReset?: () => void;
 }
 
@@ -114,7 +114,7 @@ function PropertyFilters({
               min={0}
               step={100}
               value={minSqft ?? ''}
-              onChange={(e) => setMinSqft?.(e.target.value ? Number(e.target.value) : undefined)}
+              onChange={(e) => setMinSqft?.(e.target.value ? Number(e.target.value) : 0)}
               placeholder="Any"
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />

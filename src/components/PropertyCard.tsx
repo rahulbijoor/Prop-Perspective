@@ -1,14 +1,55 @@
 import type { RankedProperty } from '../types/property';
 import type { DebateResponse } from '../types/debate';
 import { formatScore, formatZip } from '../lib/utils';
+import { inkeepAgent, DistanceResult } from '../lib/inkeep-agent';
 import DebateTrigger from './DebateTrigger';
+import { useState, useEffect } from 'react';
 
 interface PropertyCardProps {
   property: RankedProperty;
   onDebateStart?: (debate: DebateResponse, property: RankedProperty) => void;
+  userZipCode?: string;
+  // Comparison props
+  isSelected?: boolean;
+  onToggleComparison?: (propertyId: string) => void;
+  comparisonDisabled?: boolean;
+  showComparison?: boolean;
 }
 
-function PropertyCard({ property, onDebateStart }: PropertyCardProps) {
+function PropertyCard({ 
+  property, 
+  onDebateStart, 
+  userZipCode,
+  isSelected = false,
+  onToggleComparison,
+  comparisonDisabled = false,
+  showComparison = false
+}: PropertyCardProps) {
+  const [distanceInfo, setDistanceInfo] = useState<DistanceResult | null>(null);
+
+  // Calculate distance when userZipCode changes using Inkeep agent
+  useEffect(() => {
+    if (userZipCode && property.addressZipcode) {
+      const propertyZip = formatZip(property.addressZipcode) || '';
+      if (propertyZip) {
+        const calculateDistance = async () => {
+          try {
+            // Use Inkeep agent for distance calculation
+            const result = await inkeepAgent.calculateDistanceWithInkeep(userZipCode, propertyZip);
+            setDistanceInfo(result);
+          } catch (error) {
+            console.error('Inkeep agent distance calculation error:', error);
+            setDistanceInfo(null);
+          }
+        };
+        
+        calculateDistance();
+      }
+    } else {
+      setDistanceInfo(null);
+    }
+  }, [userZipCode, property.addressZipcode]);
+
   const formatPrice = (price?: number, unformattedPrice?: number) => {
     if (price) return `$${price.toLocaleString()}`;
     if (unformattedPrice) return `$${unformattedPrice.toLocaleString()}`;
@@ -86,11 +127,37 @@ function PropertyCard({ property, onDebateStart }: PropertyCardProps) {
   };
 
   return (
-    <div className="property-card bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow relative" data-testid="property-card">
+    <div className={`property-card bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow relative ${isSelected ? 'ring-2 ring-blue-500 border-blue-300' : ''}`} data-testid="property-card">
+      {/* Comparison Selection */}
+      {showComparison && onToggleComparison && (
+        <div className="absolute top-3 left-3 z-10">
+          <label className="comparison-checkbox-container">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggleComparison(property._id)}
+              disabled={comparisonDisabled && !isSelected}
+              className="comparison-checkbox"
+              title={comparisonDisabled && !isSelected ? 'Maximum properties selected' : 'Add to comparison'}
+            />
+            <span className="comparison-checkmark">
+              {isSelected ? '✓' : '+'}
+            </span>
+          </label>
+        </div>
+      )}
+
       {/* Rank Badge */}
       {property.rank && (
-        <div className="absolute top-3 right-3 bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full">
+        <div className={`absolute top-3 ${showComparison ? 'right-3' : 'right-3'} bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full`}>
           #{property.rank}
+        </div>
+      )}
+
+      {/* Selection Indicator */}
+      {isSelected && (
+        <div className="absolute top-3 right-12 bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded-full">
+          Selected
         </div>
       )}
       
@@ -103,12 +170,6 @@ function PropertyCard({ property, onDebateStart }: PropertyCardProps) {
             {property.isZillowOwned && (
               <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
                 Zillow Owned
-              </span>
-            )}
-            {/* Score Badge */}
-            {property.score !== undefined && (
-              <span className="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                Score: {formatScore(property.score)}
               </span>
             )}
           </div>
@@ -136,6 +197,41 @@ function PropertyCard({ property, onDebateStart }: PropertyCardProps) {
             <div className="text-sm text-gray-500">Sq Ft</div>
           </div>
         </div>
+
+        {/* Enhanced Distance Information */}
+        {distanceInfo && distanceInfo.distance > 0 && (
+          <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-2xl border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-3 shadow-md">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-lg font-bold text-gray-800 flex items-center">
+                    📍 {distanceInfo.distance} miles away
+                  </div>
+                  <div className="text-sm text-gray-600 flex items-center mt-1">
+                    🚗 ~{distanceInfo.travelTime} drive
+                  </div>
+                </div>
+              </div>
+              
+            </div>
+            
+            <div className="flex items-center justify-between pt-2 border-t border-blue-100">
+              <div className="text-xs text-gray-600 font-medium">
+                🤖 {distanceInfo.route}
+              </div>
+              <div className="flex items-center text-xs text-blue-600">
+                <div className="w-2 h-2 bg-green-400 rounded-full mr-1 animate-pulse"></div>
+                Live calculation
+              </div>
+            </div>
+          </div>
+        )}
 
         {property.zestimate && (
           <div className="mb-4 p-3 bg-gray-50 rounded">
@@ -189,9 +285,17 @@ function PropertyCard({ property, onDebateStart }: PropertyCardProps) {
           </div>
         )}
 
-        {/* Debate Integration */}
+        {/* Schedule Meeting & Debate Integration */}
         {onDebateStart && property._id && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+            <a 
+              href="https://calendly.com/rahulbijoor/30min" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-sm text-sm text-center inline-block"
+            >
+              📅 Schedule Meeting
+            </a>
             <DebateTrigger
               propertyId={property._id}
               onDebateStart={(debate) => onDebateStart(debate, property)}

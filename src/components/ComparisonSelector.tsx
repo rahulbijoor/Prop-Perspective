@@ -9,6 +9,7 @@ interface ComparisonSelectorProps {
   canCompare: boolean;
   maxProperties: number;
   selectionSummary: string;
+  isLoading?: boolean;
 }
 
 export function ComparisonSelector({
@@ -18,7 +19,8 @@ export function ComparisonSelector({
   onCompare,
   canCompare,
   maxProperties,
-  selectionSummary
+  selectionSummary,
+  isLoading = false
 }: ComparisonSelectorProps) {
   if (selectedProperties.length === 0) {
     return null;
@@ -44,10 +46,17 @@ export function ComparisonSelector({
           <button
             className="compare-btn"
             onClick={onCompare}
-            disabled={!canCompare}
+            disabled={!canCompare || isLoading}
             title={canCompare ? 'Compare selected properties' : 'Select at least 2 properties to compare'}
           >
-            📊 Compare Now
+            {isLoading ? (
+              <>
+                <div className="loading-spinner" style={{ width: '16px', height: '16px', marginRight: '8px' }}></div>
+                🤖 AI Analyzing...
+              </>
+            ) : (
+              '📊 Compare Now'
+            )}
           </button>
           <button
             className="clear-btn"
