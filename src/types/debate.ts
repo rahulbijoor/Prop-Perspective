@@ -94,3 +94,43 @@ export interface ArgumentCardProps {
 export interface MarketInsightsProps {
   insights: MarketInsights;
 }
+
+// Mock debate system types
+export interface MockResponse {
+  title: string;
+  confidence: number;
+  content: string;
+}
+
+export interface MockDebateState {
+  phase: TimingPhase;
+  proResponse: MockResponse | null;
+  conResponse: MockResponse | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export enum TimingPhase {
+  ANALYZING = 'analyzing',
+  PRO = 'pro',
+  CON = 'con',
+  COMPLETE = 'complete'
+}
+
+export interface MockDebateProps {
+  onComplete: (debate: DebateResponse) => void;
+  onCancel: () => void;
+  propertyId: string;
+}
+
+export interface ResponseData {
+  responses: MockResponse[];
+}
+
+export type DebatePhase = 'analyzing' | 'pro' | 'con' | 'complete';
+
+export interface MockDebateConfig {
+  proDelay: number;
+  conDelay: number;
+  enableCancellation: boolean;
+}
