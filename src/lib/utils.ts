@@ -24,17 +24,23 @@ export const DEFAULT_MIN_BATHS = 1;
 
 // Debate utility functions
 export const formatConfidenceScore = (score: number): string => {
-  return `${Math.round(score * 100)}%`;
+  // Handle both decimal (0.94) and percentage (94) formats
+  const percentage = score > 1 ? score : score * 100;
+  return `${Math.round(percentage)}%`;
 };
 
 export const getConfidenceColor = (score: number): string => {
-  if (score >= 0.8) return 'text-green-600';
-  if (score >= 0.6) return 'text-yellow-600';
+  // Handle both decimal (0.8) and percentage (80) formats
+  const normalizedScore = score > 1 ? score / 100 : score;
+  if (normalizedScore >= 0.8) return 'text-green-600';
+  if (normalizedScore >= 0.6) return 'text-yellow-600';
   return 'text-red-600';
 };
 
 export const formatArgumentStrength = (strength: number): string => {
-  return `${Math.round(strength * 100)}%`;
+  // Handle both decimal (0.94) and percentage (94) formats
+  const percentage = strength > 1 ? strength : strength * 100;
+  return `${Math.round(percentage)}%`;
 };
 
 export const getStrengthColor = (strength: number, isProArgument: boolean): string => {
@@ -87,4 +93,68 @@ export const getDebateRecommendationIcon = (recommendation: string): string => {
 
 export const sortArgumentsByStrength = (args: any[]): any[] => {
   return [...args].sort((a, b) => (b.strength || 0) - (a.strength || 0));
+};
+
+// Comparison utility functions
+export const formatComparisonCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+export const formatComparisonPercentage = (value: number): string => {
+  return `${Math.round(value)}%`;
+};
+
+export const getComparisonWinnerColor = (isWinner: boolean): string => {
+  return isWinner ? 'text-green-600 bg-green-50 border-green-200' : 'text-gray-600';
+};
+
+export const formatComparisonMetric = (value: number, type: 'currency' | 'number' | 'percentage'): string => {
+  switch (type) {
+    case 'currency':
+      return formatComparisonCurrency(value);
+    case 'percentage':
+      return formatComparisonPercentage(value);
+    case 'number':
+    default:
+      return value.toLocaleString();
+  }
+};
+
+export const calculateComparisonAdvantage = (value: number, average: number, type: 'higher' | 'lower'): string => {
+  const difference = type === 'higher' ? value - average : average - value;
+  const percentage = Math.abs((difference / average) * 100);
+  
+  if (percentage < 5) return 'Similar to average';
+  if (percentage < 15) return `${Math.round(percentage)}% ${type === 'higher' ? 'above' : 'below'} average`;
+  if (percentage < 30) return `${Math.round(percentage)}% ${type === 'higher' ? 'above' : 'below'} average (significant)`;
+  return `${Math.round(percentage)}% ${type === 'higher' ? 'above' : 'below'} average (major difference)`;
+};
+
+export const getComparisonInsightIcon = (type: string): string => {
+  switch (type.toLowerCase()) {
+    case 'best_value':
+      return '💰';
+    case 'best_location':
+      return '📍';
+    case 'best_space':
+      return '🏠';
+    case 'best_amenities':
+      return '✨';
+    case 'best_investment':
+      return '📈';
+    case 'best_for_families':
+      return '👨‍👩‍👧‍👦';
+    default:
+      return '🎯';
+  }
+};
+
+export const truncateComparisonText = (text: string, maxLength: number = 100): string => {
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength).trim() + '...';
 };
