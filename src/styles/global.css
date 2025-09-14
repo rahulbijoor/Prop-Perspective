@@ -86,21 +86,22 @@ body {
 
 /* Enhanced PropertyCard styles */
 .property-card {
-  background: var(--bg-card);
+  background: linear-gradient(145deg, #ffffff 0%, #fafbff 100%);
   border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-lg);
-  padding: var(--spacing-lg);
-  transition: all var(--transition-normal);
-  box-shadow: var(--shadow-sm);
+  border-radius: 16px;
+  padding: var(--spacing-xl);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   cursor: pointer;
   position: relative;
   overflow: hidden;
+  backdrop-filter: blur(10px);
 }
 
 .property-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--primary-color);
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.3);
+  border-color: transparent;
 }
 
 .property-card:hover::before {
@@ -109,14 +110,33 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+  height: 4px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #06b6d4, #10b981);
+  background-size: 300% 100%;
+  animation: gradientShift 3s ease infinite;
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
 .property-card-selected {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgb(37 99 235 / 0.1);
-  background: linear-gradient(135deg, var(--bg-card) 0%, rgb(37 99 235 / 0.02) 100%);
+  border-color: transparent;
+  box-shadow: 0 0 0 2px #3b82f6, 0 0 0 4px rgba(59, 130, 246, 0.2), 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(145deg, #ffffff 0%, #f0f7ff 100%);
+  transform: translateY(-4px);
+}
+
+.property-card-selected::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+  pointer-events: none;
 }
 
 /* Debate animation styles */
@@ -439,44 +459,88 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  height: 32px;
-  width: 32px;
-  background-color: rgba(255, 255, 255, 0.9);
-  border: 2px solid var(--primary-color);
+  height: 36px;
+  width: 36px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.95) 100%);
+  border: 3px solid transparent;
+  background-clip: padding-box;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: bold;
   color: var(--primary-color);
-  transition: all var(--transition-fast);
-  backdrop-filter: blur(4px);
-  box-shadow: var(--shadow-sm);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2), 0 0 0 1px rgba(59, 130, 246, 0.3);
+  cursor: pointer;
+}
+
+.comparison-checkmark::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 50%;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.comparison-checkbox:checked ~ .comparison-checkmark::before {
+  opacity: 1;
 }
 
 .comparison-checkbox:checked ~ .comparison-checkmark {
-  background-color: var(--primary-color);
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
   color: white;
-  transform: scale(1.1);
-  box-shadow: var(--shadow-md);
+  transform: scale(1.15);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4), 0 0 0 2px rgba(255, 255, 255, 0.8);
 }
 
 .comparison-checkbox:disabled ~ .comparison-checkmark {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
-  background-color: var(--bg-tertiary);
-  border-color: var(--border-color);
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
   color: var(--text-muted);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transform: none;
+}
+
+.comparison-checkbox:disabled ~ .comparison-checkmark::before {
+  display: none;
+}
+
+.comparison-checkmark:hover:not(.comparison-checkbox:disabled ~ .comparison-checkmark) {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3), 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .comparison-selector {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-lg);
-  padding: var(--spacing-lg);
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 20px;
+  padding: var(--spacing-xl);
   margin: var(--spacing-lg) 0;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(59, 130, 246, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.comparison-selector::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #06b6d4, #10b981);
+  background-size: 300% 100%;
+  animation: gradientShift 4s ease infinite;
 }
 
 .selector-header {
@@ -504,37 +568,50 @@ body {
 }
 
 .compare-btn, .clear-btn {
-  padding: var(--spacing-sm) var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-xl);
   border: none;
-  border-radius: var(--border-radius-md);
-  font-weight: 500;
+  border-radius: 12px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 
 .compare-btn {
-  background: var(--primary-color);
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
   color: white;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
 }
 
 .compare-btn:hover:not(:disabled) {
-  background: var(--primary-hover);
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.6);
 }
 
 .compare-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
 }
 
 .clear-btn {
-  background: var(--bg-secondary);
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .clear-btn:hover {
-  background: var(--bg-tertiary);
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .selected-properties {
