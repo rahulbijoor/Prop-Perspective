@@ -12,38 +12,53 @@ This guide provides comprehensive demo preparation materials and fallback strate
 ### Problem Statement (30 seconds)
 "Property hunting is overwhelming. Buyers often get caught up in emotions or miss critical factors. Our solution provides objective, AI-generated pro and con arguments for any property, helping buyers see both sides before making major financial decisions."
 
-### Live Demo (4-5 minutes)
+### Live Demo (5-7 minutes)
 
-#### Step 1: Property Selection (1 minute)
+#### Step 1: Property Selection & Comparison Setup (1.5 minutes)
 1. **Navigate to the application**: http://localhost:5173
 2. **Show the property grid**: "Here we have real Austin property data with our intelligent ranking system"
 3. **Apply filters**: Set budget to $800,000, minimum 3 bedrooms
-4. **Select a property**: Choose a mid-range property with interesting characteristics
+4. **Demonstrate comparison feature**: "Notice the checkboxes on each property - this is our new AI-powered comparison feature"
+5. **Select 2-3 properties**: Check boxes on different properties to show selection
 
 **Talking Points:**
 - "Our ranking algorithm considers price efficiency and bedroom matching"
 - "Properties are scored and ranked to help users focus on the best options"
+- "🆕 NEW: Multi-property comparison with AI insights - a unique differentiator"
 
-#### Step 2: Debate Generation (2-3 minutes)
-1. **Click "Generate Debate"**: Highlight the button
+#### Step 2: AI Property Comparison (2-3 minutes)
+1. **Show comparison selector**: "As I select properties, you can see our intelligent comparison panel"
+2. **Click 'Compare Now'**: Navigate to the comparison view
+3. **Demonstrate comparison matrix**: Show side-by-side property comparison
+4. **Highlight AI insights**: Point out winner indicators, best value analysis, trade-offs
+
+**Talking Points:**
+- "This is where DualLens really shines - AI-powered comparative analysis"
+- "The system automatically identifies winners in each category"
+- "AI generates insights about best value, family-friendly options, and investment potential"
+- "Notice the trade-off analysis - pros and cons for each property in context"
+
+#### Step 3: Individual Property Debate (2-3 minutes)
+1. **Select a property from comparison**: Click "Start Debate" on an interesting property
 2. **Show loading state**: "Our AI agents are analyzing the property..."
 3. **Present the debate**: Walk through pro and con arguments
+4. **Return to comparison**: Show how debate integrates with comparison workflow
 
 **Talking Points:**
 - "We use CrewAI with specialized agents - a Property Advocate and a Skeptical Analyst"
 - "Each agent brings different perspectives using Google's Gemini AI"
 - "The system provides balanced arguments, market insights, and a confidence score"
+- "Users can seamlessly move between comparison and detailed analysis"
 
-#### Step 3: Results Analysis (1-2 minutes)
-1. **Review Pro Arguments**: Highlight 2-3 key points
-2. **Review Con Arguments**: Highlight 2-3 key concerns
-3. **Show Summary & Recommendation**: Explain the confidence score
-4. **Market Insights**: Point out relevant market data
+#### Step 4: Results Analysis & Wow Factor (1 minute)
+1. **Export comparison**: Demonstrate export functionality
+2. **Show mobile responsiveness**: Resize window to show mobile layout
+3. **Highlight unique value**: "No other platform combines multi-property AI comparison with debate-style analysis"
 
 **Talking Points:**
-- "Notice how the AI considers location, pricing, market trends, and property condition"
-- "The confidence score helps users understand how strong the recommendation is"
-- "Market insights provide broader context for the decision"
+- "Users can export their analysis for later review or sharing with family"
+- "The entire experience is mobile-optimized for property hunting on the go"
+- "This combination of features creates a unique, comprehensive property evaluation platform"
 
 ### Technical Architecture (30 seconds)
 "The system uses a React frontend with Convex for real-time data, a Python FastAPI service with CrewAI for AI orchestration, and Google Gemini for natural language generation."
@@ -78,34 +93,6 @@ This guide provides comprehensive demo preparation materials and fallback strate
 **Expected Debate**:
 - **Pro**: Move-in ready, modern amenities
 - **Con**: Premium pricing, unproven neighborhood
-
----
-
-## Fallback Content (API Reliability)
-
-### Pre-Generated Debates
-
-#### Sample Property: 1234 Oak Street, Austin, TX
-**Price**: $650,000 | **Beds**: 4 | **Baths**: 3 | **Sqft**: 2,100
-
-**Pro Arguments:**
-1. **Excellent Location Value**: Located in a highly desirable Austin neighborhood with strong property appreciation history
-2. **Space Efficiency**: 2,100 sqft provides ample space for families with a practical layout
-3. **Market Positioning**: Priced competitively compared to similar properties in the area
-4. **Investment Potential**: Austin's growing tech sector supports long-term property value growth
-
-**Con Arguments:**
-1. **Price Premium**: $650k represents a significant investment that may strain budgets
-2. **Market Timing**: Current Austin market shows signs of cooling, potentially affecting near-term appreciation
-3. **Maintenance Considerations**: Older construction may require updates and ongoing maintenance
-4. **Competition**: High demand in this price range means limited negotiation power
-
-**Summary**: This property offers solid value in a desirable location but requires careful consideration of budget and market timing.
-
-**Recommendation**: CAUTIOUSLY OPTIMISTIC - Good long-term potential with moderate risk factors.
-
-**Confidence Score**: 7.2/10
-
 ---
 
 ## Technical Demo Checklist
