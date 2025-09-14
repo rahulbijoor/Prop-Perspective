@@ -1,6 +1,7 @@
 import { query, action } from "./_generated/server";
 import type { QueryCtx, ActionCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 import { fetchWithTimeout, logHttpOperation, validators } from "./lib/http";
 
 export const getAllProperties = query({
@@ -107,15 +108,14 @@ export const generateDebate = action({
   args: { propertyId: v.id("properties") },
   handler: async (ctx: ActionCtx, args: { propertyId: any }) => {
     try {
-      // Fetch the property data
-      const property = await ctx.db.get(args.propertyId);
+      // Fetch the property data using runQuery since actions don't have direct db access
+      const property = await ctx.runQuery(api.properties.getPropertyById, { id: args.propertyId });
       if (!property) {
         throw new Error("Property not found");
       }
 
-      // Get the debate service URL from environment with fallback to localhost
-      // In Convex, environment variables are accessed through the action context
-      const debateServiceUrl = (ctx as any).env?.DEBATE_SERVICE_URL || 'http://localhost:8000';
+      // Get the debate service URL - hardcoded for demo since Python service needs setup
+      const debateServiceUrl = 'http://localhost:8000';
       const base = debateServiceUrl.replace(/\/$/, '');
       
       // Log for debugging

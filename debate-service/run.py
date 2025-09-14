@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 def validate_environment():
     """Validate required environment variables and dependencies."""
-    print("🔍 Validating environment...")
+    print("Validating environment...")
     
     # Check for required environment variables
     required_vars = ['GOOGLE_API_KEY']
@@ -28,14 +28,14 @@ def validate_environment():
             missing_vars.append(var)
     
     if missing_vars:
-        print(f"❌ Missing required environment variables: {', '.join(missing_vars)}")
-        print("\n📝 Please create a .env file with the following variables:")
+        print(f"Missing required environment variables: {', '.join(missing_vars)}")
+        print("\nPlease create a .env file with the following variables:")
         for var in missing_vars:
             if var == 'GOOGLE_API_KEY':
                 print(f"   {var}=your_google_gemini_api_key_here")
             else:
                 print(f"   {var}=your_value_here")
-        print("\n💡 See .env.example for a template")
+        print("\nSee .env.example for a template")
         return False
     
     # Test Google API key
@@ -43,9 +43,9 @@ def validate_environment():
         import google.generativeai as genai
         genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
         model = genai.GenerativeModel('gemini-pro')
-        print("✅ Google Gemini API key is valid")
+        print("Google Gemini API key is valid")
     except Exception as e:
-        print(f"❌ Google Gemini API key validation failed: {e}")
+        print(f"Google Gemini API key validation failed: {e}")
         return False
     
     # Check for required Python packages
@@ -53,10 +53,10 @@ def validate_environment():
         import fastapi
         import uvicorn
         import crewai
-        print("✅ All required Python packages are installed")
+        print("All required Python packages are installed")
     except ImportError as e:
-        print(f"❌ Missing required Python package: {e}")
-        print("💡 Run: pip install -r requirements.txt")
+        print(f"Missing required Python package: {e}")
+        print("Run: pip install -r requirements.txt")
         return False
     
     return True
@@ -121,7 +121,7 @@ def main():
                        help='Skip port availability check')
     args = parser.parse_args()
     
-    print("🚀 Starting AI Property Debate Service...")
+    print("Starting AI Property Debate Service...")
     print("=" * 50)
     
     # Load environment variables from .env file
@@ -130,15 +130,15 @@ def main():
         env_file = Path(__file__).parent / '.env'
         if env_file.exists():
             load_dotenv(env_file)
-            print(f"✅ Loaded environment from {env_file}")
+            print(f"Loaded environment from {env_file}")
         else:
-            print("⚠️  No .env file found, using system environment variables")
+            print("No .env file found, using system environment variables")
     except ImportError:
-        print("⚠️  python-dotenv not installed, using system environment variables")
+        print("python-dotenv not installed, using system environment variables")
     
     # Validate environment
     if not validate_environment():
-        print("\n❌ Environment validation failed. Please fix the issues above.")
+        print("\nEnvironment validation failed. Please fix the issues above.")
         sys.exit(1)
     
     # Setup logging
@@ -150,51 +150,51 @@ def main():
     
     # Handle port availability with auto-retry or force option
     if args.force:
-        print(f"⚠️  Skipping port check (--force flag used)")
+        print(f"Skipping port check (--force flag used)")
     else:
         # Check if auto-increment is enabled
         auto_increment = os.getenv('PORT_AUTO_INCREMENT', 'false').lower() == 'true'
         
         if not check_port_availability(config['port']):
             if auto_increment:
-                print(f"⚠️  Port {config['port']} is in use, searching for alternative...")
+                print(f"Port {config['port']} is in use, searching for alternative...")
                 available_port = find_available_port(config['port'] + 1)
                 if available_port:
                     config['port'] = available_port
-                    print(f"✅ Found available port: {config['port']}")
+                    print(f"Found available port: {config['port']}")
                 else:
-                    print(f"❌ No available ports found in range {config['port']+1}-{config['port']+5}")
-                    print(f"💡 Try setting PORT_AUTO_INCREMENT=false or use --force flag")
+                    print(f"No available ports found in range {config['port']+1}-{config['port']+5}")
+                    print(f"Try setting PORT_AUTO_INCREMENT=false or use --force flag")
                     sys.exit(1)
             else:
-                print(f"❌ Port {config['port']} is already in use")
-                print(f"💡 Options:")
+                print(f"Port {config['port']} is already in use")
+                print(f"Options:")
                 print(f"   - Change PORT in your .env file")
                 print(f"   - Set PORT_AUTO_INCREMENT=true in .env for auto-retry")
                 print(f"   - Use --force flag to skip port check")
                 print(f"   - Kill the process using the port")
                 sys.exit(1)
         else:
-            print(f"✅ Port {config['port']} is available")
+            print(f"Port {config['port']} is available")
     
     # Import and start the server
     try:
         import uvicorn
         from main import app
         
-        print("\n🌟 Configuration:")
+        print(f"\nConfiguration:")
         print(f"   Host: {config['host']}")
         print(f"   Port: {config['port']}")
         print(f"   Reload: {config['reload']}")
         print(f"   Log Level: {config['log_level']}")
         print(f"   Environment: {os.getenv('ENVIRONMENT', 'development')}")
         
-        print(f"\n🔗 Service will be available at:")
+        print(f"\nService will be available at:")
         print(f"   API: http://{config['host']}:{config['port']}")
         print(f"   Docs: http://{config['host']}:{config['port']}/docs")
         print(f"   Health: http://{config['host']}:{config['port']}/health")
         
-        print("\n🎯 Ready for local development!")
+        print(f"\nReady for local development!")
         print("   - Auto-reload is enabled for development")
         print("   - CORS is configured for local frontend")
         print("   - Debug logging is enabled")
@@ -213,9 +213,9 @@ def main():
         )
         
     except KeyboardInterrupt:
-        print("\n\n👋 Shutting down gracefully...")
+        print("\n\nShutting down gracefully...")
     except Exception as e:
-        print(f"\n❌ Failed to start server: {e}")
+        print(f"\nFailed to start server: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

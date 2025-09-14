@@ -26,6 +26,65 @@ function PropertyCard({ property, onDebateStart }: PropertyCardProps) {
     return parts.length > 0 ? parts.join(', ') : 'Address not available';
   };
 
+  const parseMarketInfo = (variableData: string) => {
+    try {
+      // Handle both direct JSON objects and stringified JSON
+      let parsed;
+      if (typeof variableData === 'string') {
+        // Try to parse as JSON first
+        try {
+          parsed = JSON.parse(variableData);
+        } catch {
+          // If it fails, check if it looks like a Python dict representation
+          if (variableData.includes("'type':") || variableData.includes('"type":')) {
+            // Convert Python dict format to JSON
+            const jsonString = variableData
+              .replace(/'/g, '"')
+              .replace(/True/g, 'true')
+              .replace(/False/g, 'false')
+              .replace(/None/g, 'null');
+            parsed = JSON.parse(jsonString);
+          } else {
+            throw new Error('Not JSON format');
+          }
+        }
+      } else {
+        parsed = variableData;
+      }
+
+      if (parsed && parsed.type && parsed.text) {
+        return {
+          type: parsed.type,
+          text: parsed.text
+        };
+      }
+    } catch (e) {
+      console.log('Failed to parse market info:', e, variableData);
+    }
+    return { type: 'INFO', text: variableData };
+  };
+
+  const getTagColor = (type: string) => {
+    switch (type.toUpperCase()) {
+      case 'OPEN_HOUSE':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'PRICE_DROP':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'NEW_LISTING':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'VIRTUAL_TOUR':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'RECENTLY_SOLD':
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+      default:
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+    }
+  };
+
+  const formatTagType = (type: string) => {
+    return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+  };
+
   return (
     <div className="property-card bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow relative" data-testid="property-card">
       {/* Rank Badge */}
@@ -87,12 +146,25 @@ function PropertyCard({ property, onDebateStart }: PropertyCardProps) {
           </div>
         )}
 
-        {property.variableData && (
-          <div className="mb-4">
-            <div className="text-sm text-gray-600 mb-1">Market Info</div>
-            <div className="text-sm text-gray-800">{property.variableData}</div>
-          </div>
-        )}
+        {property.variableData && (() => {
+          const marketInfo = parseMarketInfo(property.variableData);
+          return (
+            <div className="mb-4">
+              <div className="text-sm text-gray-600 mb-2">Market Info</div>
+              <div className="flex flex-wrap gap-2">
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getTagColor(marketInfo.type)}`}>
+                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  {formatTagType(marketInfo.type)}
+                </span>
+              </div>
+              <div className="text-xs text-gray-600 mt-2 leading-relaxed">
+                {marketInfo.text}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Score Breakdown */}
         {property.scoreBreakdown && (
