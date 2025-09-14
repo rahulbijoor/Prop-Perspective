@@ -14,7 +14,7 @@ const ArgumentCard: React.FC<{ argument: DebateArgument; type: ArgumentType; ind
   const isProArgument = type === ArgType.PRO;
   
   return (
-    <div className={`p-4 rounded-lg border-l-4 ${
+    <div className={`debate-argument ${type === ArgType.PRO ? 'pro' : 'con'} p-4 rounded-lg border-l-4 ${
       isProArgument 
         ? 'bg-green-50 border-green-500' 
         : 'bg-red-50 border-red-500'
@@ -109,7 +109,7 @@ const DebateView: React.FC<DebateViewProps> = ({ debate, onClose, property }) =>
   const confidenceColor = getConfidenceColor(debate.confidence_score);
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="debate-container max-w-6xl mx-auto p-6" data-testid="debate-content">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -127,7 +127,7 @@ const DebateView: React.FC<DebateViewProps> = ({ debate, onClose, property }) =>
       </div>
 
       {/* Debate Summary */}
-      <div className="bg-gray-50 p-6 rounded-lg mb-6">
+      <div className="bg-gray-50 p-6 rounded-lg mb-6" data-testid="debate-summary">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900">Debate Summary</h2>
           <div className={`text-lg font-bold ${confidenceColor}`}>
@@ -146,7 +146,7 @@ const DebateView: React.FC<DebateViewProps> = ({ debate, onClose, property }) =>
       {/* Pro and Con Arguments */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Pro Arguments */}
-        <div>
+        <div data-testid="pro-arguments">
           <h2 className="text-xl font-semibold text-green-700 mb-4 flex items-center">
             <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -166,7 +166,7 @@ const DebateView: React.FC<DebateViewProps> = ({ debate, onClose, property }) =>
         </div>
 
         {/* Con Arguments */}
-        <div>
+        <div data-testid="con-arguments">
           <h2 className="text-xl font-semibold text-red-700 mb-4 flex items-center">
             <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -193,10 +193,11 @@ const DebateView: React.FC<DebateViewProps> = ({ debate, onClose, property }) =>
       {debate.metadata && (
         <div className="mt-6 text-sm text-gray-500 bg-gray-50 p-4 rounded">
           <div className="flex flex-wrap gap-4">
-            <span>Model: {debate.metadata.model_used}</span>
+            <span>Model: {debate.metadata.model_name}</span>
             <span>Tokens: {debate.metadata.total_tokens?.toLocaleString()}</span>
-            <span>Generated in: {debate.metadata.latency_seconds}s</span>
-            <span>ID: {debate.metadata.debate_id}</span>
+            <span>Generated in: {Math.round(debate.metadata.latency_ms / 1000)}s</span>
+            <span>Agents: {debate.metadata.agents_used.join(', ')}</span>
+            {debate.metadata.request_id && <span>ID: {debate.metadata.request_id}</span>}
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
 import { query, action } from "./_generated/server";
 import type { QueryCtx, ActionCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { fetchWithTimeout, logHttpOperation, validators } from "./lib/http";
 
 export const getAllProperties = query({
   args: {},
@@ -112,9 +113,13 @@ export const generateDebate = action({
         throw new Error("Property not found");
       }
 
-      // Get the debate service URL from environment variables
-      const debateServiceUrl = 'http://localhost:8000';
+      // Get the debate service URL from environment with fallback to localhost
+      // In Convex, environment variables are accessed through the action context
+      const debateServiceUrl = (ctx as any).env?.DEBATE_SERVICE_URL || 'http://localhost:8000';
       const base = debateServiceUrl.replace(/\/$/, '');
+      
+      // Log for debugging
+      console.log(`Calling debate service at: ${base}/debate`);
 
       // Transform property data to match the Python service expected format
       const address = property.address ?? [
@@ -127,48 +132,56 @@ export const generateDebate = action({
         .join(', ');
 
       const debateRequest = {
-        property_id: args.propertyId,
-        address,
-        price: property.unformattedPrice ?? property.price ?? 0,
-        bedrooms: property.beds ?? 0,
-        bathrooms: property.baths ?? 0,
-        sqft: property.area ?? 0,
-        property_type: 'Single Family Home',
-        additional_context: 'Property listing data',
+        property_data: {
+          price: property.unformattedPrice ?? property.price ?? 0,
+          unformattedPrice: property.unformattedPrice ?? property.price ?? 0,
+          address,
+          addressStreet: property.addressStreet,
+          addressCity: property.addressCity,
+          addressState: property.addressState,
+          addressZipcode: property.addressZipcode,
+          beds: property.beds ?? 0,
+          baths: property.baths ?? 0,
+          area: property.area ?? 0,
+          latitude: property.latitude,
+          longitude: property.longitude,
+          isZillowOwned: property.isZillowOwned,
+          variableData: property.variableData,
+          badgeInfo: property.badgeInfo,
+          pgapt: property.pgapt,
+          sgapt: property.sgapt,
+          zestimate: property.zestimate,
+          info3String: property.info3String,
+          brokerName: property.brokerName,
+        },
+        context: 'Property listing data',
+        focus_areas: [],
       };
 
-      // Call the Python debate service with timeout
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 60000); // 60s
-      
-      let response;
-      try {
-        response = await fetch(`${base}/debate`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(debateRequest),
-          signal: controller.signal
-        });
-      } catch (e) {
-        if ((e as any).name === 'AbortError') throw new Error('Debate service timeout');
-        throw e;
-      } finally {
-        clearTimeout(timeout);
+      // Call the Python debate service using enhanced fetch helper
+      const result = await fetchWithTimeout(`${base}/debate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(debateRequest),
+        timeout: 45000, // 45 seconds for snappier demo feedback
+        retries: 1,
+        retryDelay: 5000,
+      });
+
+      // Log the operation
+      logHttpOperation('generateDebate', `${base}/debate`, result, {
+        propertyId: args.propertyId,
+      });
+
+      if (!result.success) {
+        throw new Error(`Debate service error: ${result.error}`);
       }
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Debate service error: ${response.status} - ${errorText}`);
-      }
-
-      const debateResponse = await response.json();
-
-      // Validate the response structure
-      if (!debateResponse || !debateResponse.pro_arguments || !debateResponse.con_arguments ||
-          !debateResponse.summary || !debateResponse.recommendation ||
-          typeof debateResponse.confidence_score !== 'number' || !debateResponse.market_insights) {
+      // Validate the response structure using the helper
+      const debateResponse = result.data;
+      if (!validators.debateResponse(debateResponse)) {
         throw new Error('Invalid debate response format');
       }
 

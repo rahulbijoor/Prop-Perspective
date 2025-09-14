@@ -29,11 +29,15 @@ export interface MarketInsights {
 }
 
 export interface DebateMetadata {
-  model_used: string;
-  total_tokens: number;
-  latency_seconds: number;
+  model_name: string;
+  total_tokens?: number;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  latency_ms: number;
   timestamp: string;
-  debate_id: string;
+  agents_used: string[];
+  cache_hit: boolean;
+  request_id?: string;
 }
 
 export interface DebateResponse {

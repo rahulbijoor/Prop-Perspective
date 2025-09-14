@@ -65,8 +65,8 @@ function App() {
 
   // If there's an active debate, show the debate view
   if (activeDebate && selectedProperty) {
-    return (
-      <div className="min-h-screen bg-gray-50">
+  return (
+    <div className="demo-mode min-h-screen bg-gray-50">
         <ErrorBoundary fallback={<div className="p-4">Failed to render debate.</div>}>
           <DebateView
             debate={activeDebate}
@@ -79,7 +79,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="demo-mode min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
@@ -131,7 +131,7 @@ function App() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="property-grid">
             {properties.map((property: RankedProperty) => (
               <PropertyCard 
                 key={property._id} 

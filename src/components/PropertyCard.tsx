@@ -27,7 +27,7 @@ function PropertyCard({ property, onDebateStart }: PropertyCardProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow relative">
+    <div className="property-card bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow relative" data-testid="property-card">
       {/* Rank Badge */}
       {property.rank && (
         <div className="absolute top-3 right-3 bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full">

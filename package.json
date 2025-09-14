@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "convex:dev": "convex dev",
     "convex:deploy": "convex deploy",
-    "convex:import": "convex import --table properties data/Zillow_Austin_11-16-22.csv"
+    "convex:import": "convex import --table properties data/Zillow_Austin_11-16-22.csv",
+    "start:python": "cd debate-service && python run.py",
+    "start:all": "concurrently \"npm run convex:dev\" \"npm run start:python\" \"npm run dev\"",
+    "demo": "npm run start:all"
   },
   "dependencies": {
     "convex": "^1.27.0",
@@ -20,6 +23,7 @@
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
     "typescript": "^5.2.2",
     "vite": "^5.0.8"
   }
