@@ -1,7 +1,7 @@
 import type { RankedProperty } from '../types/property';
 import type { DebateResponse } from '../types/debate';
 import { formatScore, formatZip } from '../lib/utils';
-import { inkeepAgent, DistanceResult } from '../lib/inkeep-agent';
+import { distanceCalculator, DistanceResult } from '../lib/inkeep-agent';
 import DebateTrigger from './DebateTrigger';
 import { useState, useEffect } from 'react';
 
@@ -34,11 +34,11 @@ function PropertyCard({
       if (propertyZip) {
         const calculateDistance = async () => {
           try {
-            // Use Inkeep agent for distance calculation
-            const result = await inkeepAgent.calculateDistanceWithInkeep(userZipCode, propertyZip);
+            // Use distance calculator for distance calculation
+            const result = await distanceCalculator.calculateDistance(userZipCode, propertyZip);
             setDistanceInfo(result);
           } catch (error) {
-            console.error('Inkeep agent distance calculation error:', error);
+            console.error('Distance calculation error:', error);
             setDistanceInfo(null);
           }
         };

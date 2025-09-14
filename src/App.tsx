@@ -1,6 +1,6 @@
 import { useQuery } from 'convex/react'
 import { api } from '../convex/_generated/api'
-import { debateService } from './lib/debate-service'
+
 import { useState, useEffect } from 'react'
 import PropertyCard from './components/PropertyCard'
 import PropertyFilters from './components/PropertyFilters'
@@ -11,7 +11,7 @@ import ComparisonSelector from './components/ComparisonSelector'
 import ErrorBoundary from './components/ErrorBoundary'
 import { DEFAULT_BUDGET, DEFAULT_MIN_BEDS, DEFAULT_MIN_BATHS, DEFAULT_MIN_SQFT } from './lib/utils'
 import useComparison from './hooks/useComparison'
-import { ComparisonMode } from './types/comparison'
+
 import type { RankedProperty } from './types/property'
 import type { DebateResponse } from './types/debate'
 
@@ -59,7 +59,7 @@ function App() {
     }
     
     return true;
-  }).map((property: any, index: number) => {
+  }).map((property: any) => {
     // AI-Powered Intelligent Scoring System
     let aiScore = 0;
     
@@ -292,7 +292,7 @@ function App() {
             </div>
             <div className="flex items-center space-x-3">
               <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-200">
-                🤖 Inkeep Agent Active
+                📍 Distance Calculator Active
               </div>
               <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 border border-blue-200">
                 ✨ AI-Powered

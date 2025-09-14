@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { inkeepAgent } from '../lib/inkeep-agent';
+import { distanceCalculator } from '../lib/inkeep-agent';
 import { ZipCodeData } from '../lib/distance-calculator';
 
 interface LocationInputProps {
@@ -18,7 +18,7 @@ const LocationInput: React.FC<LocationInputProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedZip, setSelectedZip] = useState<string>('');
 
-  // Get suggestions based on input using Inkeep agent
+  // Get suggestions based on input using distance calculator
   useEffect(() => {
     if (input.length < 2) {
       setSuggestions([]);
@@ -28,12 +28,12 @@ const LocationInput: React.FC<LocationInputProps> = ({
 
     const getSuggestions = async () => {
       try {
-        // Use Inkeep agent for location suggestions
-        const zipSuggestions = await inkeepAgent.getInkeepLocationSuggestions(input);
+        // Use distance calculator for location suggestions
+        const zipSuggestions = await distanceCalculator.getLocationSuggestions(input);
         setSuggestions(zipSuggestions);
         setShowSuggestions(zipSuggestions.length > 0);
       } catch (error) {
-        console.error('Inkeep agent suggestion error:', error);
+        console.error('Distance calculator suggestion error:', error);
         setSuggestions([]);
         setShowSuggestions(false);
       }
@@ -67,15 +67,15 @@ const LocationInput: React.FC<LocationInputProps> = ({
 
   const handleDirectZipEntry = async () => {
     const cleanZip = input.replace(/\D/g, '').substring(0, 5);
-    if (cleanZip.length === 5 && inkeepAgent.isValidZipViaInkeep(cleanZip)) {
+    if (cleanZip.length === 5 && distanceCalculator.isValidZip(cleanZip)) {
       try {
-        // Use Inkeep agent to get ZIP code suggestions for the entered ZIP
-        const zipSuggestions = await inkeepAgent.getInkeepLocationSuggestions(cleanZip);
+        // Use distance calculator to get ZIP code suggestions for the entered ZIP
+        const zipSuggestions = await distanceCalculator.getLocationSuggestions(cleanZip);
         if (zipSuggestions.length > 0) {
           handleSuggestionClick(zipSuggestions[0]);
         }
       } catch (error) {
-        console.error('Inkeep agent direct ZIP entry error:', error);
+        console.error('Distance calculator direct ZIP entry error:', error);
       }
     }
   };
@@ -96,7 +96,7 @@ const LocationInput: React.FC<LocationInputProps> = ({
         </div>
         <div className="ml-auto">
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800">
-            🤖 Inkeep Agent
+            📍 Distance Calculator
           </span>
         </div>
       </div>
