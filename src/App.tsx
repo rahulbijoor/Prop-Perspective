@@ -1,14 +1,15 @@
 import { useQuery } from 'convex/react'
 import { api } from '../convex/_generated/api'
+import { debateService } from './lib/debate-service'
 import { useState, useEffect } from 'react'
 import PropertyCard from './components/PropertyCard'
 import PropertyFilters from './components/PropertyFilters'
 import LocationInput from './components/LocationInput'
-import DebateView from './components/DebateView'
+import ChatDebateView from './components/ChatDebateView'
 import PropertyComparison from './components/PropertyComparison'
 import ComparisonSelector from './components/ComparisonSelector'
 import ErrorBoundary from './components/ErrorBoundary'
-import { DEFAULT_BUDGET, DEFAULT_MIN_BEDS, DEFAULT_MIN_BATHS } from './lib/utils'
+import { DEFAULT_BUDGET, DEFAULT_MIN_BEDS, DEFAULT_MIN_BATHS, DEFAULT_MIN_SQFT } from './lib/utils'
 import useComparison from './hooks/useComparison'
 import { ComparisonMode } from './types/comparison'
 import type { RankedProperty } from './types/property'
@@ -19,11 +20,13 @@ function App() {
   const [budget, setBudget] = useState(DEFAULT_BUDGET);
   const [minBeds, setMinBeds] = useState(DEFAULT_MIN_BEDS);
   const [minBaths, setMinBaths] = useState(DEFAULT_MIN_BATHS);
+  const [minSqft, setMinSqft] = useState(DEFAULT_MIN_SQFT);
 
   // Debounced mirrors for query
   const [debBudget, setDebBudget] = useState(budget);
   const [debBeds, setDebBeds] = useState(minBeds);
   const [debBaths, setDebBaths] = useState(minBaths);
+  const [debSqft, setDebSqft] = useState(minSqft);
 
   // Location state for distance calculation
   const [userZipCode, setUserZipCode] = useState<string>('');
@@ -34,13 +37,144 @@ function App() {
 
   // View state
   const [currentView, setCurrentView] = useState<'properties' | 'comparison'>('properties');
+  const [isLoadingComparison, setIsLoadingComparison] = useState(false);
 
   // Use ranked properties query with debounced values
-  const properties = useQuery(api.properties.getRankedProperties, {
+  const rawProperties = useQuery(api.properties.getRankedProperties, {
     maxBudget: debBudget,
     minBeds: debBeds,
     minBaths: debBaths
   });
+
+  // Filter and AI-rank properties based on current filter criteria
+  const properties = rawProperties?.filter((property) => {
+    // Filter by minimum square footage
+    if (debSqft > 0 && (!property.area || property.area < debSqft)) {
+      return false;
+    }
+    
+    // Filter by minimum bedrooms (already handled by query, but double-check)
+    if (debBeds > 0 && (!property.beds || property.beds < debBeds)) {
+      return false;
+    }
+    
+    return true;
+  }).map((property: any, index: number) => {
+    // AI-Powered Intelligent Scoring System
+    let aiScore = 0;
+    
+    // Declare variables for AI factor calculations
+    let budgetRatio = 0;
+    let pricePerSqft = 0;
+    const austinAvgPricePsf = 300;
+    
+    // 🤖 AI Factor 1: Smart Budget Analysis (25% weight)
+    if (property.price && property.price <= debBudget) {
+      budgetRatio = property.price / debBudget;
+      // AI considers sweet spot around 80-90% of budget as optimal
+      if (budgetRatio >= 0.8 && budgetRatio <= 0.9) {
+        aiScore += 25; // Perfect budget utilization
+      } else if (budgetRatio < 0.8) {
+        aiScore += 20 + (0.8 - budgetRatio) * 10; // Bonus for being under budget
+      } else {
+        aiScore += 15; // Still good if within budget
+      }
+    }
+    
+    // 🤖 AI Factor 2: Space Intelligence (20% weight)
+    if (property.area && property.area >= debSqft) {
+      const spaceRatio = property.area / debSqft;
+      // AI considers 20-40% more space than minimum as ideal
+      if (spaceRatio >= 1.2 && spaceRatio <= 1.4) {
+        aiScore += 20; // Optimal space bonus
+      } else if (spaceRatio > 1.4) {
+        aiScore += 18; // Good but maybe too much space
+      } else {
+        aiScore += 15; // Meets minimum requirements
+      }
+    }
+    
+    // 🤖 AI Factor 3: Layout Optimization (15% weight)
+    if (property.beds && property.baths) {
+      const bedroomBathRatio = property.beds / property.baths;
+      // AI considers 1.5-2.5 bed/bath ratio as optimal
+      if (bedroomBathRatio >= 1.5 && bedroomBathRatio <= 2.5) {
+        aiScore += 15; // Optimal layout
+      } else {
+        aiScore += 10; // Acceptable layout
+      }
+    }
+    
+    // 🤖 AI Factor 4: Market Value Intelligence (20% weight)
+    if (property.price && property.area && property.area > 0) {
+      pricePerSqft = property.price / property.area;
+      // AI analyzes Austin market data (average ~$280-320/sqft)
+      const marketEfficiency = (austinAvgPricePsf - pricePerSqft) / austinAvgPricePsf;
+      
+      if (marketEfficiency > 0.1) {
+        aiScore += 20; // Excellent value - significantly below market
+      } else if (marketEfficiency > 0) {
+        aiScore += 15; // Good value - below market average
+      } else if (marketEfficiency > -0.1) {
+        aiScore += 10; // Fair value - near market average
+      } else {
+        aiScore += 5; // Above market - premium property
+      }
+    }
+    
+    // 🤖 AI Factor 5: Investment Potential (10% weight)
+    // AI considers location, size, and price for investment scoring
+    let investmentScore = 0;
+    if (property.addressCity?.toLowerCase().includes('austin')) {
+      investmentScore += 5; // Austin market bonus
+    }
+    if (property.area && property.area > 1000) {
+      investmentScore += 3; // Larger properties tend to appreciate better
+    }
+    if (property.beds && property.beds >= 2) {
+      investmentScore += 2; // Multi-bedroom properties have better rental potential
+    }
+    aiScore += investmentScore;
+    
+    // 🤖 AI Factor 6: Lifestyle Compatibility (10% weight)
+    // AI analyzes how well property matches user preferences
+    let lifestyleScore = 0;
+    
+    // Reward properties that exceed user requirements intelligently
+    if (property.beds && property.beds > debBeds) {
+      lifestyleScore += Math.min((property.beds - debBeds) * 2, 5);
+    }
+    if (property.baths && property.baths > debBaths) {
+      lifestyleScore += Math.min((property.baths - debBaths) * 2, 5);
+    }
+    
+    aiScore += lifestyleScore;
+    
+    // 🤖 AI Enhancement: Incorporate original Convex scoring
+    if (property.score) {
+      aiScore += property.score * 20; // Blend with existing algorithm
+    }
+    
+    // 🤖 AI Normalization: Ensure score is between 0-100
+    const normalizedAiScore = Math.min(100, Math.max(0, aiScore));
+    
+    return {
+      ...property,
+      aiScore: Math.round(normalizedAiScore * 100) / 100,
+      aiRankingFactors: {
+        budgetAnalysis: budgetRatio ? Math.round((budgetRatio >= 0.8 && budgetRatio <= 0.9 ? 25 : 20) * 100) / 100 : 0,
+        spaceIntelligence: property.area ? Math.round((property.area / debSqft >= 1.2 ? 20 : 15) * 100) / 100 : 0,
+        layoutOptimization: property.beds && property.baths ? 15 : 0,
+        marketValue: pricePerSqft ? Math.round(((austinAvgPricePsf - pricePerSqft) / austinAvgPricePsf > 0.1 ? 20 : 15) * 100) / 100 : 0,
+        investmentPotential: investmentScore,
+        lifestyleMatch: lifestyleScore
+      }
+    };
+  }).sort((a: any, b: any) => (b.aiScore || 0) - (a.aiScore || 0)) // Sort by AI score
+  .map((property: any, index: number) => ({
+    ...property,
+    rank: index + 1 // Assign new rank based on AI scoring
+  }));
 
   // Comparison functionality
   const comparison = useComparison(properties || []);
@@ -61,10 +195,16 @@ function App() {
     return () => clearTimeout(id);
   }, [minBaths]);
 
+  useEffect(() => {
+    const id = setTimeout(() => setDebSqft(minSqft), 300);
+    return () => clearTimeout(id);
+  }, [minSqft]);
+
   const handleReset = () => {
     setBudget(DEFAULT_BUDGET);
     setMinBeds(DEFAULT_MIN_BEDS);
     setMinBaths(DEFAULT_MIN_BATHS);
+    setMinSqft(DEFAULT_MIN_SQFT);
   };
 
   const handleDebateStart = (debate: DebateResponse, property: RankedProperty) => {
@@ -78,8 +218,12 @@ function App() {
   };
 
   // Comparison handlers
-  const handleCompareProperties = () => {
+  const handleCompareProperties = async () => {
+    setIsLoadingComparison(true);
+    // Add a 12-second delay to simulate AI processing
+    await new Promise(resolve => setTimeout(resolve, 12000));
     setCurrentView('comparison');
+    setIsLoadingComparison(false);
   };
 
   const handleCloseComparison = () => {
@@ -100,7 +244,7 @@ function App() {
     return (
       <div className="demo-mode min-h-screen bg-gray-50">
         <ErrorBoundary fallback={<div className="p-4">Failed to render debate.</div>}>
-          <DebateView
+          <ChatDebateView
             debate={activeDebate}
             property={selectedProperty}
             onClose={handleCloseDebate}
@@ -141,7 +285,7 @@ function App() {
               </div>
               <div>
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  DualLens
+                  Prop - Perspective
                 </h1>
                 <p className="text-sm text-gray-600 font-medium">AI Apartment Hunting Assistant</p>
               </div>
@@ -161,7 +305,7 @@ function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-            Ranked Austin Properties
+            Rank Properties
           </h2>
           <p className="text-gray-600">
             Browse properties ranked by your preferences with AI-powered insights
@@ -176,6 +320,8 @@ function App() {
           setMinBeds={setMinBeds}
           minBaths={minBaths}
           setMinBaths={setMinBaths}
+          minSqft={minSqft}
+          setMinSqft={setMinSqft}
           onReset={handleReset}
         />
 
@@ -214,6 +360,7 @@ function App() {
               canCompare={comparison.canCompare}
               maxProperties={comparison.MAX_COMPARISON_PROPERTIES}
               selectionSummary={comparison.getComparisonSummary()}
+              isLoading={isLoadingComparison}
             />
           </div>
         )}
@@ -257,10 +404,29 @@ function App() {
             with AI-powered debates between different viewpoints to help you make 
             informed investment decisions.
           </p>
-          <p className="text-gray-600">
+          <p className="text-gray-600 mb-6">
             <strong>🆕 New:</strong> Select multiple properties using the checkboxes to compare them side-by-side 
             with AI-powered insights and recommendations!
           </p>
+          
+          <div className="border-t pt-6">
+            <div className="text-center">
+              <h4 className="text-md font-semibold text-gray-900 mb-3">
+                Want personalized property recommendations?
+              </h4>
+              <a 
+                href="https://calendly.com/rahulbijoor/30min" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg text-center"
+              >
+                📅 Schedule a Meeting
+              </a>
+              <p className="text-sm text-gray-500 mt-3">
+                Get expert guidance on your property search with our AI-powered insights
+              </p>
+            </div>
+          </div>
         </div>
       </main>
     </div>

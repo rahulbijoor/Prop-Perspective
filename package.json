@@ -15,7 +15,9 @@
     "demo": "npm run start:all"
   },
   "dependencies": {
+    "@types/node": "^24.3.3",
     "convex": "^1.27.0",
+    "openai": "^5.20.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

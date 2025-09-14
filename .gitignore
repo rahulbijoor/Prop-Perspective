@@ -17,6 +17,53 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.demo
+
+# Python environment files
+debate-service/.env
+debate-service/.env.local
+debate-service/.env.production
+debate-service/.env.development
+debate-service/venv/
+debate-service/__pycache__/
+debate-service/*.pyc
+debate-service/*.pyo
+debate-service/*.pyd
+debate-service/.Python
+debate-service/env/
+debate-service/pip-log.txt
+debate-service/pip-delete-this-directory.txt
+debate-service/.tox/
+debate-service/.coverage
+debate-service/.coverage.*
+debate-service/.cache
+debate-service/nosetests.xml
+debate-service/coverage.xml
+debate-service/*.cover
+debate-service/*.log
+
+# API Keys and Secrets
+**/api-keys.json
+**/secrets.json
+**/credentials.json
+**/.credentials
+**/config/secrets.*
+**/config/keys.*
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Configuration files with sensitive data
+**/config/production.*
+**/config/staging.*
+**/config/local.*
 
 
 # Convex

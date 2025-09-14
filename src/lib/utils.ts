@@ -21,6 +21,7 @@ export function debounce<T extends (...a: any[]) => void>(fn: T, wait = 300) {
 export const DEFAULT_BUDGET = 500000;
 export const DEFAULT_MIN_BEDS = 2;
 export const DEFAULT_MIN_BATHS = 1;
+export const DEFAULT_MIN_SQFT = 1750;
 
 // Debate utility functions
 export const formatConfidenceScore = (score: number): string => {
