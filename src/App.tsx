@@ -8,12 +8,16 @@ import LocationInput from './components/LocationInput'
 import ChatDebateView from './components/ChatDebateView'
 import PropertyComparison from './components/PropertyComparison'
 import ComparisonSelector from './components/ComparisonSelector'
+import ComparisonView from './components/ComparisonView'
+import ComparisonTrigger from './components/ComparisonTrigger'
 import ErrorBoundary from './components/ErrorBoundary'
 import { DEFAULT_BUDGET, DEFAULT_MIN_BEDS, DEFAULT_MIN_BATHS, DEFAULT_MIN_SQFT } from './lib/utils'
 import useComparison from './hooks/useComparison'
+import { useComparison as useAIComparison } from './hooks/useComparison'
 
 import type { RankedProperty } from './types/property'
 import type { DebateResponse } from './types/debate'
+import type { ComparisonResponse } from './types/comparison'
 
 function App() {
   // Filter state for immediate UI updates
@@ -35,9 +39,12 @@ function App() {
   const [activeDebate, setActiveDebate] = useState<DebateResponse | null>(null);
   const [selectedProperty, setSelectedProperty] = useState<RankedProperty | null>(null);
 
+  // Comparison state
+  const [activeComparison, setActiveComparison] = useState<ComparisonResponse | null>(null);
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
+
   // View state
-  const [currentView, setCurrentView] = useState<'properties' | 'comparison'>('properties');
-  const [isLoadingComparison, setIsLoadingComparison] = useState(false);
+  const [currentView, setCurrentView] = useState<'properties' | 'debate' | 'comparison'>('properties');
 
   // Use ranked properties query with debounced values
   const rawProperties = useQuery(api.properties.getRankedProperties, {

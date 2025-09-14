@@ -150,13 +150,59 @@ class HealthResponse(BaseModel):
         }
 
 
+class ComparisonRequest(BaseModel):
+    """Request model for property comparison"""
+    properties_data: List[PropertyData]
+    context: Optional[str] = Field(None, description="Additional context for the comparison")
+    focus_areas: Optional[List[str]] = Field(
+        default_factory=list,
+        description="Specific areas to focus on (e.g., 'value', 'location', 'family_suitability')"
+    )
+
+    class Config:
+        max_anystr_length = 10000  # Limit string field lengths
+
+
+class ComparisonInsight(BaseModel):
+    """Individual comparison insight"""
+    title: str = Field(..., min_length=1, max_length=200)
+    content: str = Field(..., min_length=50, max_length=2000)
+    strength: float = Field(..., ge=0.0, le=1.0, description="Insight strength score (0-1)")
+    category: str = Field(..., description="Category of insight (e.g., 'value', 'location', 'space')")
+    recommendations: Optional[List[str]] = Field(default_factory=list)
+    property_rankings: Optional[Dict[str, int]] = Field(None, description="Property rankings for this insight")
+
+
+class ComparisonSummary(BaseModel):
+    """Summary of the comparison analysis"""
+    total_properties: int
+    price_range: Dict[str, Optional[float]]
+    avg_price_per_sqft: Optional[float] = None
+    key_findings: List[str]
+    overall_recommendation: str = Field(..., description="Overall recommendation based on analysis")
+
+
+class ComparisonResponse(BaseModel):
+    """Complete comparison response"""
+    insights: List[ComparisonInsight]
+    summary: ComparisonSummary
+    confidence_score: float = Field(..., ge=0.0, le=1.0)
+    metadata: DebateMetadata
+    agent_response: Optional[Dict[str, Any]] = None
+
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+
+
 class ErrorResponse(BaseModel):
     """Error response model"""
     error: str
     detail: Optional[str] = None
     request_id: Optional[str] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    
+
     class Config:
         json_encoders = {
             datetime: lambda v: v.isoformat()

@@ -1,208 +1,127 @@
-import { useState, useCallback, useMemo } from 'react';
-import { Property } from '../types/property';
-import { 
-  ComparisonState, 
-  ComparisonResult, 
-  ComparisonMode 
-} from '../types/comparison';
-import { ComparisonEngine } from '../lib/comparison-engine';
+import { useState, useCallback, useRef } from 'react';
+import { useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { comparisonService } from '../lib/comparison-service';
+import type { Id } from '../../convex/_generated/dataModel';
+import type { ComparisonResponse } from '../types/comparison';
 
-const MAX_COMPARISON_PROPERTIES = 4;
-const MIN_COMPARISON_PROPERTIES = 2;
+interface ComparisonState {
+  isLoading: boolean;
+  error: string | null;
+  comparison: ComparisonResponse | null;
+  isGenerating: boolean;
+}
+import type { Property } from '../types/property';
 
-export function useComparison(allProperties: Property[] = []) {
+export const useComparison = () => {
   const [comparisonState, setComparisonState] = useState<ComparisonState>({
-    selectedProperties: [],
-    comparisonData: [],
-    insights: null,
     isLoading: false,
     error: null,
-    viewMode: ComparisonMode.TABLE
+    comparison: null,
+    isGenerating: false,
   });
 
-  const selectedPropertiesData = useMemo(() => {
-    return allProperties.filter(property => 
-      comparisonState.selectedProperties.includes(property._id)
-    );
-  }, [allProperties, comparisonState.selectedProperties]);
+  // Get all properties for property lookup
+  const allProperties = useQuery(api.properties.getAllProperties);
 
-  const comparisonResult = useMemo<ComparisonResult | null>(() => {
-    if (selectedPropertiesData.length < MIN_COMPARISON_PROPERTIES) {
-      return null;
+  // Caching and request deduplication
+  const cache = useRef(new Map<string, ComparisonResponse>());
+  const inflight = useRef(new Map<string, Promise<ComparisonResponse>>());
+
+  // Guard against out-of-order responses
+  const reqId = useRef(0);
+
+  const startComparison = useCallback(async (propertyIds: Id<'properties'>[]) => {
+    if (propertyIds.length < 2) {
+      throw new Error('At least 2 properties are required for comparison');
     }
 
-    try {
-      return ComparisonEngine.generateComparison(selectedPropertiesData);
-    } catch (error) {
-      console.error('Error generating comparison:', error);
-      return null;
+    // Create cache key from sorted property IDs
+    const cacheKey = propertyIds.sort().join(',');
+
+    // Check cache first
+    const cached = cache.current.get(cacheKey);
+    if (cached) return cached;
+
+    // Check if request is already in flight
+    const pending = inflight.current.get(cacheKey);
+    if (pending) return pending;
+
+    // Find the property data
+    const properties: Property[] = [];
+    for (const propertyId of propertyIds) {
+      const property = allProperties?.find((p: any) => p._id === propertyId);
+      if (!property) {
+        throw new Error(`Property ${propertyId} not found`);
+      }
+      properties.push(property);
     }
-  }, [selectedPropertiesData]);
 
-  const addProperty = useCallback((propertyId: string) => {
-    setComparisonState(prev => {
-      if (prev.selectedProperties.includes(propertyId)) {
-        return prev; // Already selected
-      }
+    // Create new request with order tracking
+    const current = ++reqId.current;
+    const p = (async () => {
+      setComparisonState(s => ({ ...s, isLoading: true, isGenerating: true, error: null }));
+      try {
+        console.log('🚀 Starting property comparison with comparison service...');
 
-      if (prev.selectedProperties.length >= MAX_COMPARISON_PROPERTIES) {
-        return {
-          ...prev,
-          error: `Maximum ${MAX_COMPARISON_PROPERTIES} properties can be compared`
-        };
-      }
+        // Use the actual comparison service
+        const res = await comparisonService.generateComparison(properties);
 
-      return {
-        ...prev,
-        selectedProperties: [...prev.selectedProperties, propertyId],
-        error: null
-      };
-    });
-  }, []);
+        cache.current.set(cacheKey, res);
 
-  const removeProperty = useCallback((propertyId: string) => {
-    setComparisonState(prev => ({
-      ...prev,
-      selectedProperties: prev.selectedProperties.filter(id => id !== propertyId),
-      error: null
-    }));
-  }, []);
-
-  const toggleProperty = useCallback((propertyId: string) => {
-    setComparisonState(prev => {
-      const isSelected = prev.selectedProperties.includes(propertyId);
-      
-      if (isSelected) {
-        return {
-          ...prev,
-          selectedProperties: prev.selectedProperties.filter(id => id !== propertyId),
-          error: null
-        };
-      } else {
-        if (prev.selectedProperties.length >= MAX_COMPARISON_PROPERTIES) {
-          return {
-            ...prev,
-            error: `Maximum ${MAX_COMPARISON_PROPERTIES} properties can be compared`
-          };
+        // Only update state if this is still the current request
+        if (reqId.current === current) {
+          setComparisonState(s => ({ ...s, isLoading: false, isGenerating: false, comparison: res }));
         }
 
-        return {
-          ...prev,
-          selectedProperties: [...prev.selectedProperties, propertyId],
-          error: null
-        };
+        console.log('✅ Property comparison completed successfully');
+        return res;
+      } catch (error) {
+        console.error('❌ Property comparison failed:', error);
+
+        // Only update error state if this is still the current request
+        if (reqId.current === current) {
+          const errorMessage = error instanceof Error ? error.message : 'Failed to generate comparison';
+          setComparisonState(s => ({ ...s, isLoading: false, isGenerating: false, error: errorMessage }));
+        }
+        throw error;
+      } finally {
+        inflight.current.delete(cacheKey);
       }
+    })();
+
+    inflight.current.set(cacheKey, p);
+    return p;
+  }, [allProperties]);
+
+  const clearComparison = useCallback(() => {
+    setComparisonState({
+      isLoading: false,
+      error: null,
+      comparison: null,
+      isGenerating: false,
     });
-  }, []);
-
-  const clearAll = useCallback(() => {
-    setComparisonState(prev => ({
-      ...prev,
-      selectedProperties: [],
-      comparisonData: [],
-      insights: null,
-      error: null
-    }));
-  }, []);
-
-  const setViewMode = useCallback((mode: ComparisonMode) => {
-    setComparisonState(prev => ({
-      ...prev,
-      viewMode: mode
-    }));
   }, []);
 
   const clearError = useCallback(() => {
     setComparisonState(prev => ({
       ...prev,
-      error: null
+      error: null,
     }));
   }, []);
 
-  const canAddMore = comparisonState.selectedProperties.length < MAX_COMPARISON_PROPERTIES;
-  const canCompare = comparisonState.selectedProperties.length >= MIN_COMPARISON_PROPERTIES;
-  const isMaxSelected = comparisonState.selectedProperties.length >= MAX_COMPARISON_PROPERTIES;
-
-  const isPropertySelected = useCallback((propertyId: string) => {
-    return comparisonState.selectedProperties.includes(propertyId);
-  }, [comparisonState.selectedProperties]);
-
-  const getSelectionCount = () => comparisonState.selectedProperties.length;
-
-  const getComparisonSummary = () => {
-    const count = comparisonState.selectedProperties.length;
-    if (count === 0) return 'No properties selected';
-    if (count === 1) return '1 property selected - add 1 more to compare';
-    if (count < MAX_COMPARISON_PROPERTIES) return `${count} properties selected - add up to ${MAX_COMPARISON_PROPERTIES - count} more`;
-    return `${count} properties selected (maximum reached)`;
-  };
-
-  const exportComparison = useCallback(() => {
-    if (!comparisonResult) return null;
-
-    const exportData = {
-      timestamp: new Date().toISOString(),
-      properties: comparisonResult.properties.map(p => ({
-        address: p.address,
-        price: p.price,
-        area: p.area,
-        beds: p.beds,
-        baths: p.baths,
-        walkScore: p.walkScore,
-        pricePerSqft: p.pricePerSqft,
-        valueScore: p.valueScore
-      })),
-      insights: comparisonResult.insights,
-      winners: comparisonResult.winners,
-      summary: comparisonResult.summary
-    };
-
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-      type: 'application/json'
-    });
-    
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `property-comparison-${Date.now()}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    return exportData;
-  }, [comparisonResult]);
+  const retryComparison = useCallback(async (propertyIds: Id<'properties'>[]) => {
+    clearError();
+    return await startComparison(propertyIds);
+  }, [startComparison, clearError]);
 
   return {
-    // State
-    selectedProperties: comparisonState.selectedProperties,
-    selectedPropertiesData,
-    comparisonResult,
-    isLoading: comparisonState.isLoading,
-    error: comparisonState.error,
-    viewMode: comparisonState.viewMode,
-
-    // Actions
-    addProperty,
-    removeProperty,
-    toggleProperty,
-    clearAll,
-    setViewMode,
+    ...comparisonState,
+    startComparison,
+    clearComparison,
     clearError,
-    exportComparison,
-
-    // Computed values
-    canAddMore,
-    canCompare,
-    isMaxSelected,
-    isPropertySelected,
-    getSelectionCount,
-    getComparisonSummary,
-
-    // Constants
-    MAX_COMPARISON_PROPERTIES,
-    MIN_COMPARISON_PROPERTIES
+    retryComparison,
   };
-}
+};
 
 export default useComparison;

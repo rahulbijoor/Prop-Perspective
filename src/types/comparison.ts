@@ -109,3 +109,73 @@ export interface ComparisonResult {
     bestValue: string;
   };
 }
+
+// Backend API types that mirror Python models
+export interface ComparisonRequest {
+  properties_data: Array<{
+    price?: number;
+    unformattedPrice?: number;
+    address?: string;
+    addressStreet?: string;
+    addressCity?: string;
+    addressState?: string;
+    addressZipcode?: string | number;
+    beds?: number;
+    baths?: number;
+    area?: number;
+    latitude?: number;
+    longitude?: number;
+    isZillowOwned?: boolean;
+    variableData?: string;
+    badgeInfo?: string;
+    pgapt?: string;
+    sgapt?: string;
+    zestimate?: number;
+    info3String?: string;
+    brokerName?: string;
+  }>;
+  context?: string;
+  focus_areas?: string[];
+}
+
+export interface ComparisonInsight {
+  title: string;
+  content: string;
+  strength: number;
+  category: string;
+  recommendations?: string[];
+  property_rankings?: Record<string, number>;
+}
+
+export interface ComparisonSummary {
+  total_properties: number;
+  price_range: Record<string, number | null>;
+  avg_price_per_sqft?: number;
+  key_findings: string[];
+  overall_recommendation: string;
+}
+
+export interface ComparisonResponse {
+  insights: ComparisonInsight[];
+  summary: ComparisonSummary;
+  confidence_score: number;
+  metadata: {
+    model_name: string;
+    total_tokens?: number;
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    latency_ms: number;
+    timestamp: string;
+    agents_used: string[];
+    cache_hit: boolean;
+    request_id?: string;
+  };
+  agent_response?: any;
+}
+
+export interface ComparisonState {
+  isLoading: boolean;
+  error: string | null;
+  comparison: ComparisonResponse | null;
+  isGenerating: boolean;
+}

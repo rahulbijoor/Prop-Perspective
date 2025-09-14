@@ -1,7 +1,7 @@
 import logging
 from crewai import Agent
 from crewai.tools import BaseTool
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from config import get_gemini_config, settings
 from utils import (
     price_per_sqft, compute_market_position, summarize_location,
@@ -16,20 +16,20 @@ class PropertyAnalysisTool(BaseTool):
     """Custom tool for property analysis"""
     name: str = "property_analysis"
     description: str = "Analyze property data and provide market insights"
-    
+
     def _run(self, property_data: Dict[str, Any]) -> str:
         """Run property analysis"""
         try:
             # Convert dict to PropertyData model
             prop_data = PropertyData(**property_data)
-            
+
             # Calculate metrics
             price_sqft = price_per_sqft(prop_data)
             market_pos = compute_market_position(prop_data)
             location = summarize_location(prop_data)
             investment_potential = assess_investment_potential(prop_data)
             risks = identify_risk_factors(prop_data)
-            
+
             # Format analysis
             analysis = f"""
 Property Analysis:
@@ -44,10 +44,153 @@ Property Analysis:
 - Zestimate: {format_currency(prop_data.zestimate)}
 """
             return analysis.strip()
-            
+
         except Exception as e:
             logger.error(f"Error in property analysis tool: {e}")
             return f"Analysis error: {str(e)}"
+
+
+class PropertyComparisonTool(BaseTool):
+    """Custom tool for comparing multiple properties"""
+    name: str = "property_comparison"
+    description: str = "Compare multiple properties and provide comparative analysis"
+
+    def _run(self, properties_data: List[Dict[str, Any]]) -> str:
+        """Run property comparison analysis"""
+        try:
+            if not properties_data or len(properties_data) < 2:
+                return "Error: At least 2 properties required for comparison"
+
+            # Convert to PropertyData models
+            properties = [PropertyData(**prop_data) for prop_data in properties_data]
+
+            # Calculate comparative metrics
+            comparison_data = self._calculate_comparison_metrics(properties)
+
+            # Format comparison analysis
+            analysis = f"""
+Property Comparison Analysis ({len(properties)} properties):
+
+PRICE ANALYSIS:
+- Price Range: {format_currency(comparison_data['price_range']['min'])} - {format_currency(comparison_data['price_range']['max'])}
+- Average Price: {format_currency(comparison_data['price_range']['avg'])}
+- Best Value (lowest $/sqft): Property {comparison_data['best_value_idx'] + 1} at {format_currency(comparison_data['best_value_price_sqft'])}/sqft
+
+SIZE ANALYSIS:
+- Size Range: {comparison_data['size_range']['min']} - {comparison_data['size_range']['max']} sq ft
+- Average Size: {comparison_data['size_range']['avg']} sq ft
+- Largest Property: Property {comparison_data['largest_idx'] + 1} ({comparison_data['largest_size']} sq ft)
+
+LOCATION ANALYSIS:
+- Locations: {', '.join(comparison_data['locations'])}
+- Most Walkable: Property {comparison_data['most_walkable_idx'] + 1} (estimated walk score: {comparison_data['highest_walk_score']})
+
+RECOMMENDATIONS:
+{chr(10).join(f"- {rec}" for rec in comparison_data['recommendations'])}
+"""
+            return analysis.strip()
+
+        except Exception as e:
+            logger.error(f"Error in property comparison tool: {e}")
+            return f"Comparison error: {str(e)}"
+
+    def _calculate_comparison_metrics(self, properties: List[PropertyData]) -> Dict[str, Any]:
+        """Calculate comparative metrics for properties"""
+        try:
+            # Price analysis
+            prices = [p.price for p in properties if p.price]
+            price_sqfts = []
+            for p in properties:
+                if p.price and p.area and p.area > 0:
+                    price_sqfts.append(p.price / p.area)
+
+            # Size analysis
+            sizes = [p.area for p in properties if p.area]
+
+            # Location analysis (simplified)
+            locations = []
+            for p in properties:
+                if p.address_city and p.address_state:
+                    locations.append(f"{p.address_city}, {p.address_state}")
+                elif p.address:
+                    locations.append(p.address.split(',')[0])
+                else:
+                    locations.append("Unknown")
+
+            # Walk score estimation (simplified)
+            walk_scores = []
+            for p in properties:
+                # Simple estimation based on price and size
+                base_score = 50
+                if p.price and p.area and p.area > 0:
+                    price_sqft = p.price / p.area
+                    if price_sqft > 500:
+                        base_score += 30
+                    elif price_sqft > 300:
+                        base_score += 20
+                    elif price_sqft > 200:
+                        base_score += 10
+                walk_scores.append(min(100, base_score))
+
+            # Generate recommendations
+            recommendations = []
+
+            if price_sqfts:
+                best_value_idx = price_sqfts.index(min(price_sqfts))
+                recommendations.append(f"Best value: Property {best_value_idx + 1} offers the lowest price per square foot")
+
+            if sizes:
+                largest_idx = sizes.index(max(sizes))
+                recommendations.append(f"Largest space: Property {largest_idx + 1} provides the most living area")
+
+            most_walkable_idx = walk_scores.index(max(walk_scores))
+            recommendations.append(f"Best location: Property {most_walkable_idx + 1} has the highest estimated walkability")
+
+            # Family suitability (based on beds/baths)
+            family_scores = []
+            for p in properties:
+                family_score = (p.beds or 0) * 2 + (p.baths or 0)
+                family_scores.append(family_score)
+
+            if family_scores:
+                best_family_idx = family_scores.index(max(family_scores))
+                recommendations.append(f"Best for families: Property {best_family_idx + 1} offers the most bedrooms and bathrooms")
+
+            return {
+                'price_range': {
+                    'min': min(prices) if prices else 0,
+                    'max': max(prices) if prices else 0,
+                    'avg': sum(prices) / len(prices) if prices else 0
+                },
+                'size_range': {
+                    'min': min(sizes) if sizes else 0,
+                    'max': max(sizes) if sizes else 0,
+                    'avg': sum(sizes) / len(sizes) if sizes else 0
+                },
+                'best_value_idx': price_sqfts.index(min(price_sqfts)) if price_sqfts else 0,
+                'best_value_price_sqft': min(price_sqfts) if price_sqfts else 0,
+                'largest_idx': sizes.index(max(sizes)) if sizes else 0,
+                'largest_size': max(sizes) if sizes else 0,
+                'locations': locations,
+                'most_walkable_idx': most_walkable_idx,
+                'highest_walk_score': max(walk_scores),
+                'recommendations': recommendations
+            }
+
+        except Exception as e:
+            logger.error(f"Error calculating comparison metrics: {e}")
+            return {
+                'price_range': {'min': 0, 'max': 0, 'avg': 0},
+                'size_range': {'min': 0, 'max': 0, 'avg': 0},
+                'best_value_idx': 0,
+                'best_value_price_sqft': 0,
+                'largest_idx': 0,
+                'largest_size': 0,
+                'locations': ['Unknown'],
+                'most_walkable_idx': 0,
+                'highest_walk_score': 50,
+                'recommendations': ['Further analysis needed']
+            }
 
 
 def create_pro_agent() -> Agent:
@@ -221,12 +364,90 @@ def create_debate_agents() -> Dict[str, Agent]:
         raise
 
 
+def create_comparison_agent() -> Agent:
+    """Create the Property Comparison Agent"""
+
+    gemini_config = get_gemini_config(settings)
+
+    return Agent(
+        role="Property Comparison Specialist",
+        goal="Analyze and compare multiple properties to help buyers make informed decisions",
+        backstory="""You are a senior real estate market analyst with 20+ years of experience helping buyers
+compare properties and make optimal housing decisions. Your expertise includes:
+- Multi-property comparative analysis across price, size, location, and features
+- Identifying trade-offs between different property options
+- Understanding buyer priorities and matching properties to needs
+- Market trend analysis and neighborhood comparisons
+- Value assessment across different property types and locations
+
+You excel at breaking down complex property comparisons into clear, actionable insights that help
+buyers understand the relative strengths and weaknesses of different options. Your analysis is
+data-driven but considers the human factors that influence housing decisions.""",
+        verbose=True,
+        allow_delegation=False,
+        tools=[PropertyComparisonTool()],
+        llm_config={
+            "model": gemini_config["model"],
+            "api_key": gemini_config["api_key"],
+            "temperature": gemini_config["temperature"],
+            "max_tokens": gemini_config["max_tokens"],
+        },
+        max_iter=4,
+        memory=True,
+        step_callback=None,
+        system_template="""You are a Property Comparison Specialist. Your task is to analyze multiple properties and provide clear, comparative insights to help buyers make informed decisions.
+
+COMPARISON FRAMEWORK:
+1. **Market Context**: Establish the price and value landscape across all properties
+2. **Property Segmentation**: Group properties by type, size, and target buyer
+3. **Trade-off Analysis**: Identify key trade-offs between price, size, location, and features
+4. **Buyer Fit Assessment**: Match properties to different buyer profiles and priorities
+5. **Recommendation Matrix**: Provide clear recommendations based on different criteria
+
+ANALYSIS STRUCTURE:
+- Start with overall market positioning and price analysis
+- Compare properties across key dimensions (value, space, location, features)
+- Identify clear winners and best-use cases for each property
+- Provide balanced assessment of pros/cons for each option
+- End with decision framework for different buyer types
+
+OUTPUT FORMAT:
+- Provide 3-5 key comparison insights
+- Each insight should be 150-400 words with specific data references
+- Include comparative rankings and recommendations
+- Support analysis with specific property data comparisons
+- Use clear, actionable language for buyers
+
+Remember: Focus on helping buyers understand the relative merits of each option. Be objective, data-driven, and consider multiple buyer perspectives (families, investors, first-time buyers, etc.)."""
+    )
+
+
+def create_all_agents() -> Dict[str, Agent]:
+    """Create and return all agents including comparison agent"""
+    try:
+        pro_agent = create_pro_agent()
+        con_agent = create_con_agent()
+        comparison_agent = create_comparison_agent()
+
+        logger.info("Successfully created all agents")
+
+        return {
+            "pro_agent": pro_agent,
+            "con_agent": con_agent,
+            "comparison_agent": comparison_agent
+        }
+
+    except Exception as e:
+        logger.error(f"Error creating agents: {e}")
+        raise
+
+
 def format_agent_prompt(agent_type: str, property_data: PropertyData, context: Optional[str] = None, focus_areas: Optional[list] = None) -> str:
     """Format the prompt for an agent"""
-    
+
     # Convert property data to dict for the tool
     property_dict = property_data.dict()
-    
+
     # Base prompt
     prompt = f"""Analyze this property and provide your {agent_type} perspective.
 
@@ -243,5 +464,37 @@ Please use the property_analysis tool to get detailed insights, then provide you
 
 {get_shared_instructions()}
 """
-    
+
+    return prompt.strip()
+
+
+def format_comparison_prompt(properties_data: List[PropertyData], context: Optional[str] = None, focus_areas: Optional[List[str]] = None) -> str:
+    """Format the prompt for the comparison agent"""
+
+    # Convert property data to dicts for the tool
+    properties_dicts = [prop.dict() for prop in properties_data]
+
+    # Base prompt
+    prompt = f"""Compare these {len(properties_data)} properties and provide comparative analysis.
+
+PROPERTIES DATA:
+{chr(10).join(f'Property {i+1}: {prop_dict}' for i, prop_dict in enumerate(properties_dicts))}
+
+ADDITIONAL CONTEXT:
+{context or 'No additional context provided'}
+
+FOCUS AREAS:
+{', '.join(focus_areas) if focus_areas else 'General comparison analysis'}
+
+Please use the property_comparison tool to get detailed comparative insights, then provide your analysis based on your role as a comparison specialist.
+
+COMPARISON INSTRUCTIONS:
+- Provide 3-5 key comparison insights
+- Each insight should be 150-400 words with specific data references
+- Include comparative rankings and recommendations
+- Support analysis with specific property data comparisons
+- Use clear, actionable language for buyers
+- Consider multiple buyer perspectives (families, investors, first-time buyers, etc.)
+"""
+
     return prompt.strip()

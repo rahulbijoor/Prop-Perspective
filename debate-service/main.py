@@ -15,9 +15,9 @@ import uvicorn
 
 from models import (
     DebateRequest, DebateResponse, HealthResponse, ErrorResponse,
-    PropertyData
+    PropertyData, ComparisonRequest, ComparisonResponse
 )
-from debate_service import orchestrator
+from debate_service import orchestrator, comparison_orchestrator
 from config import settings
 from utils import validate_property_data
 
@@ -418,6 +418,119 @@ async def generate_property_debate(request: DebateRequest, http_request: Request
         )
 
 
+@app.post("/compare", response_model=ComparisonResponse)
+async def generate_property_comparison(request: ComparisonRequest, http_request: Request):
+    """
+    Generate a property comparison analysis using AI agents.
+
+    This endpoint compares multiple properties and returns structured insights
+    highlighting differences, trade-offs, and recommendations across various criteria.
+
+    **Request Body:**
+    - `properties_data`: List of property information including price, location, size, etc.
+    - `context`: Optional additional context for the comparison
+    - `focus_areas`: Optional list of specific areas to focus on
+
+    **Response:**
+    - `insights`: List of comparison insights with categories and recommendations
+    - `summary`: Overall comparison summary with key statistics
+    - `confidence_score`: Confidence in the analysis (0.0-1.0)
+    - `metadata`: Processing metadata including timing and token usage
+
+    **Error Responses:**
+    - `400`: Invalid input data
+    - `422`: Validation error
+    - `429`: Rate limit exceeded
+    - `503`: Service unavailable (too many concurrent requests)
+    - `504`: Request timeout
+    - `500`: Internal server error
+    """
+    request_id = getattr(http_request.state, 'request_id', None)
+
+    try:
+        # Validate that we have at least 2 properties
+        if len(request.properties_data) < 2:
+            raise ValueError("At least 2 properties are required for comparison")
+
+        # Validate each property
+        validation_errors = []
+        total_completeness = 0
+
+        for i, property_data in enumerate(request.properties_data):
+            validation_result = validate_property_data(property_data)
+
+            if not validation_result['is_valid']:
+                validation_errors.extend([f"Property {i+1}: {error}" for error in validation_result['errors']])
+
+            total_completeness += validation_result['completeness_score']
+
+            # Log validation warnings
+            if validation_result['warnings']:
+                logger.warning(
+                    f"Property {i+1} validation warnings",
+                    extra={
+                        "request_id": request_id,
+                        "property_index": i,
+                        "warnings": validation_result['warnings'],
+                        "completeness_score": validation_result['completeness_score']
+                    }
+                )
+
+        if validation_errors:
+            raise ValueError(f"Invalid property data: {'; '.join(validation_errors)}")
+
+        avg_completeness = total_completeness / len(request.properties_data)
+
+        # Generate comparison
+        logger.info(
+            "Starting property comparison",
+            extra={
+                "request_id": request_id,
+                "property_count": len(request.properties_data),
+                "focus_areas": request.focus_areas,
+                "avg_completeness_score": avg_completeness
+            }
+        )
+
+        response = await comparison_orchestrator.generate_comparison(request)
+
+        # Update request ID in response
+        response.metadata.request_id = request_id
+
+        logger.info(
+            "Property comparison completed",
+            extra={
+                "request_id": request_id,
+                "insights_count": len(response.insights),
+                "confidence_score": response.confidence_score,
+                "processing_time_ms": response.metadata.latency_ms
+            }
+        )
+
+        return response
+
+    except ValueError as e:
+        logger.warning(f"Invalid comparison request data: {e}", extra={"request_id": request_id})
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+    except TimeoutError as e:
+        logger.error(f"Comparison request timeout: {e}", extra={"request_id": request_id})
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Request timeout. Please try again."
+        )
+
+    except Exception as e:
+        logger.error(f"Unexpected error in comparison: {e}", extra={"request_id": request_id}, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred. Please try again later."
+        )
+
+
 @app.get("/")
 async def root():
     """Root endpoint with basic API information"""
@@ -428,6 +541,7 @@ async def root():
         "endpoints": {
             "health": "/health",
             "debate": "/debate",
+            "compare": "/compare",
             "docs": "/docs" if settings.DEBUG else "disabled",
         }
     }

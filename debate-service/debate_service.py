@@ -8,10 +8,12 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 
 from crewai import Task, Crew
 from models import (
-    PropertyData, DebateRequest, DebateResponse, DebateArgument, 
-    AgentResponse, DebateMetadata, MarketInsights, ArgumentType
+    PropertyData, DebateRequest, DebateResponse, DebateArgument,
+    AgentResponse, DebateMetadata, MarketInsights, ArgumentType,
+    ComparisonRequest, ComparisonResponse, ComparisonInsight,
+    ComparisonSummary
 )
-from agents import create_debate_agents, format_agent_prompt
+from agents import create_all_agents, format_agent_prompt, format_comparison_prompt
 from utils import (
     price_per_sqft, compute_market_position, summarize_location,
     assess_investment_potential, identify_risk_factors, generate_property_hash,
@@ -514,5 +516,320 @@ class DebateOrchestrator:
             logger.warning(f"Error caching response: {e}")
 
 
-# Global orchestrator instance
+class ComparisonOrchestrator:
+    """Orchestrates property comparison analysis"""
+
+    def __init__(self):
+        self.agents = create_all_agents()
+        self.executor = ThreadPoolExecutor(max_workers=settings.MAX_CONCURRENT_REQUESTS)
+        logger.info("ComparisonOrchestrator initialized")
+
+    async def generate_comparison(self, request: ComparisonRequest) -> ComparisonResponse:
+        """Generate a complete comparison response"""
+        start_time = time.time()
+        request_id = self._generate_comparison_request_id(request)
+
+        logger.info(f"Starting comparison generation for request {request_id}")
+
+        try:
+            # Run comparison agent
+            agent_response = await self._run_comparison_agent(
+                request.properties_data, request.context, request.focus_areas
+            )
+
+            # Parse the agent response into structured insights
+            insights = self._parse_comparison_output(agent_response)
+
+            # Generate summary
+            summary = self._generate_comparison_summary(request.properties_data, insights)
+
+            # Calculate confidence
+            confidence = self._calculate_comparison_confidence(insights)
+
+            # Calculate metadata
+            end_time = time.time()
+            latency_ms = (end_time - start_time) * 1000
+
+            metadata = DebateMetadata(
+                model_name=settings.GEMINI_MODEL,
+                latency_ms=latency_ms,
+                agents_used=["comparison_agent"],
+                request_id=request_id,
+                total_tokens=self._estimate_comparison_tokens(agent_response, insights, summary)
+            )
+
+            # Create response
+            response = ComparisonResponse(
+                insights=insights,
+                summary=summary,
+                confidence_score=confidence,
+                metadata=metadata,
+                agent_response={"raw_output": agent_response}
+            )
+
+            logger.info(f"Comparison generation completed for request {request_id} in {latency_ms:.2f}ms")
+            return response
+
+        except Exception as e:
+            logger.error(f"Error generating comparison for request {request_id}: {e}")
+            raise
+
+    async def _run_comparison_agent(
+        self,
+        properties_data: List[PropertyData],
+        context: Optional[str],
+        focus_areas: Optional[List[str]]
+    ) -> str:
+        """Run the comparison agent"""
+        agent = self.agents["comparison_agent"]
+
+        for attempt in range(settings.MAX_RETRIES):
+            try:
+                # Format the prompt
+                prompt = format_comparison_prompt(properties_data, context, focus_areas)
+
+                # Create and execute task
+                task = Task(
+                    description=prompt,
+                    agent=agent,
+                    expected_output="A structured comparison analysis with 3-5 key insights, each with title, content, strength score, category, and recommendations."
+                )
+
+                # Run in thread pool to avoid blocking
+                loop = asyncio.get_event_loop()
+                result = await loop.run_in_executor(
+                    self.executor,
+                    self._execute_crew_task,
+                    task,
+                    agent
+                )
+
+                return str(result)
+
+            except Exception as e:
+                logger.warning(f"Comparison agent attempt {attempt + 1} failed: {e}")
+                if attempt == settings.MAX_RETRIES - 1:
+                    raise
+                await asyncio.sleep(1)  # Brief delay before retry
+
+    def _parse_comparison_output(self, output: str) -> List[ComparisonInsight]:
+        """Parse comparison agent output into structured insights"""
+        try:
+            insights = []
+
+            # Split output into potential insights (simple heuristic)
+            sections = output.split('\n\n')
+
+            for i, section in enumerate(sections):
+                if len(section.strip()) < 100:  # Skip short sections
+                    continue
+
+                # Extract title (first line or generate one)
+                lines = section.strip().split('\n')
+                title = lines[0][:200] if lines[0] else f"Comparison Insight {i+1}"
+
+                # Clean title
+                title = title.replace('*', '').replace('#', '').strip()
+                if not title:
+                    title = f"Key Comparison Point {i+1}"
+
+                # Content is the full section
+                content = section.strip()
+
+                # Estimate strength and category
+                strength = self._estimate_insight_strength(content)
+                category = self._categorize_insight(content)
+
+                # Extract recommendations
+                recommendations = self._extract_recommendations(content)
+
+                insight = ComparisonInsight(
+                    title=title,
+                    content=content,
+                    strength=strength,
+                    category=category,
+                    recommendations=recommendations
+                )
+
+                insights.append(insight)
+
+                # Limit to 5 insights
+                if len(insights) >= 5:
+                    break
+
+            # Ensure we have at least 3 insights
+            if len(insights) < 3:
+                insights.extend(self._create_fallback_insights(3 - len(insights)))
+
+            return insights[:5]  # Max 5 insights
+
+        except Exception as e:
+            logger.error(f"Error parsing comparison output: {e}")
+            return self._create_fallback_insights(3)
+
+    def _estimate_insight_strength(self, content: str) -> float:
+        """Estimate insight strength based on content analysis"""
+        try:
+            base_strength = 0.6
+
+            # Adjust based on content length
+            if len(content) > 300:
+                base_strength += 0.1
+            if len(content) > 500:
+                base_strength += 0.1
+
+            # Look for strong indicators
+            strong_words = ['significant', 'substantial', 'excellent', 'outstanding', 'major', 'critical', 'clear winner']
+            data_words = ['price', 'sqft', 'bedroom', 'bathroom', 'location', 'value']
+
+            strong_count = sum(1 for word in strong_words if word.lower() in content.lower())
+            data_count = sum(1 for word in data_words if word.lower() in content.lower())
+
+            base_strength += (strong_count * 0.05) + (data_count * 0.03)
+
+            # Look for data/numbers
+            if any(char.isdigit() for char in content):
+                base_strength += 0.1
+
+            return max(0.3, min(1.0, base_strength))
+
+        except Exception:
+            return 0.6  # Default strength
+
+    def _categorize_insight(self, content: str) -> str:
+        """Categorize the insight based on content"""
+        content_lower = content.lower()
+
+        if any(word in content_lower for word in ['price', 'cost', 'value', 'affordability']):
+            return 'value'
+        elif any(word in content_lower for word in ['location', 'walk', 'neighborhood', 'area']):
+            return 'location'
+        elif any(word in content_lower for word in ['space', 'size', 'sqft', 'room']):
+            return 'space'
+        elif any(word in content_lower for word in ['family', 'bedroom', 'bathroom', 'living']):
+            return 'family_suitability'
+        elif any(word in content_lower for word in ['investment', 'return', 'appreciation']):
+            return 'investment'
+        else:
+            return 'general'
+
+    def _extract_recommendations(self, content: str) -> List[str]:
+        """Extract recommendation points from content"""
+        recommendations = []
+
+        try:
+            # Look for recommendation patterns
+            lines = content.split('\n')
+            for line in lines:
+                line = line.strip()
+                if any(line.lower().startswith(word) for word in ['recommend', 'consider', 'choose', 'best for']):
+                    recommendations.append(line)
+                elif line.startswith('-') or line.startswith('•'):
+                    if any(word in line.lower() for word in ['property', 'option', 'choice']):
+                        recommendations.append(line[1:].strip())
+
+            return recommendations[:3]  # Max 3 recommendations
+
+        except Exception:
+            return []
+
+    def _create_fallback_insights(self, count: int) -> List[ComparisonInsight]:
+        """Create fallback insights when parsing fails"""
+        insights = []
+
+        categories = ['value', 'location', 'space', 'family_suitability', 'investment']
+
+        for i in range(count):
+            category = categories[i % len(categories)]
+            title = f"Property Comparison - {category.title()}"
+            content = f"This comparison highlights important differences between the properties in terms of {category}. Each property offers unique advantages that should be considered based on your specific needs and priorities."
+
+            insights.append(ComparisonInsight(
+                title=title,
+                content=content,
+                strength=0.5,
+                category=category,
+                recommendations=[f"Evaluate Property {i+1} for {category} considerations"]
+            ))
+
+        return insights
+
+    def _generate_comparison_summary(self, properties_data: List[PropertyData], insights: List[ComparisonInsight]) -> ComparisonSummary:
+        """Generate comparison summary"""
+        try:
+            # Calculate basic stats
+            prices = [p.price for p in properties_data if p.price]
+            price_sqfts = []
+            for p in properties_data:
+                if p.price and p.area and p.area > 0:
+                    price_sqfts.append(p.price / p.area)
+
+            price_range = {
+                'min': min(prices) if prices else None,
+                'max': max(prices) if prices else None,
+                'avg': sum(prices) / len(prices) if prices else None
+            }
+
+            avg_price_per_sqft = sum(price_sqfts) / len(price_sqfts) if price_sqfts else None
+
+            # Extract key findings from insights
+            key_findings = []
+            for insight in insights[:3]:
+                key_findings.append(insight.title)
+
+            # Generate overall recommendation
+            overall_recommendation = "Consider your priorities carefully - each property has unique strengths. Review the detailed insights above to determine which option best matches your needs."
+
+            return ComparisonSummary(
+                total_properties=len(properties_data),
+                price_range=price_range,
+                avg_price_per_sqft=avg_price_per_sqft,
+                key_findings=key_findings,
+                overall_recommendation=overall_recommendation
+            )
+
+        except Exception as e:
+            logger.error(f"Error generating comparison summary: {e}")
+            return ComparisonSummary(
+                total_properties=len(properties_data),
+                price_range={'min': None, 'max': None, 'avg': None},
+                key_findings=["Analysis completed with some limitations"],
+                overall_recommendation="Further analysis recommended"
+            )
+
+    def _calculate_comparison_confidence(self, insights: List[ComparisonInsight]) -> float:
+        """Calculate overall confidence based on insight strengths"""
+        if not insights:
+            return 0.0
+
+        avg_strength = sum(insight.strength for insight in insights) / len(insights)
+        return min(1.0, avg_strength + 0.1)  # Slight boost for having multiple insights
+
+    def _estimate_comparison_tokens(self, agent_response: str, insights: List[ComparisonInsight], summary: ComparisonSummary) -> int:
+        """Estimate total tokens used for comparison"""
+        try:
+            # Rough estimation: 1 token ≈ 4 characters
+            total_chars = len(agent_response)
+
+            for insight in insights:
+                total_chars += len(insight.title) + len(insight.content)
+
+            total_chars += len(summary.overall_recommendation)
+            total_chars += sum(len(finding) for finding in summary.key_findings)
+
+            return total_chars // 4
+
+        except Exception:
+            return 1000  # Default estimate
+
+    def _generate_comparison_request_id(self, request: ComparisonRequest) -> str:
+        """Generate a unique request ID for comparison"""
+        timestamp = str(int(time.time()))
+        # Create a hash based on all properties
+        properties_hash = hashlib.md5(str([p.dict() for p in request.properties_data]).encode()).hexdigest()[:8]
+        return f"comp_{timestamp}_{properties_hash}"
+
+
+# Global orchestrator instances
 orchestrator = DebateOrchestrator()
+comparison_orchestrator = ComparisonOrchestrator()
