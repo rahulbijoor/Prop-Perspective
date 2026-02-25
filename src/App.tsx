@@ -13,7 +13,6 @@ import ComparisonTrigger from './components/ComparisonTrigger'
 import ErrorBoundary from './components/ErrorBoundary'
 import { DEFAULT_BUDGET, DEFAULT_MIN_BEDS, DEFAULT_MIN_BATHS, DEFAULT_MIN_SQFT } from './lib/utils'
 import useComparison from './hooks/useComparison'
-import { useComparison as useAIComparison } from './hooks/useComparison'
 
 import type { RankedProperty } from './types/property'
 import type { DebateResponse } from './types/debate'
@@ -42,6 +41,7 @@ function App() {
   // Comparison state
   const [activeComparison, setActiveComparison] = useState<ComparisonResponse | null>(null);
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
+  const [isLoadingComparison, setIsLoadingComparison] = useState(false);
 
   // View state
   const [currentView, setCurrentView] = useState<'properties' | 'debate' | 'comparison'>('properties');
@@ -66,7 +66,7 @@ function App() {
     }
     
     return true;
-  }).map((property: any) => {
+  }).map((property: RankedProperty) => {
     // AI-Powered Intelligent Scoring System
     let aiScore = 0;
     
