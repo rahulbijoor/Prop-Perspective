@@ -42,16 +42,23 @@ function App() {
   // Comparison state
   const [activeComparison, setActiveComparison] = useState<ComparisonResponse | null>(null);
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
+  const [isLoadingComparison, setIsLoadingComparison] = useState(false); // Declare loading state for comparison
 
   // View state
   const [currentView, setCurrentView] = useState<'properties' | 'debate' | 'comparison'>('properties');
 
   // Use ranked properties query with debounced values
-  const rawProperties = useQuery(api.properties.getRankedProperties, {
+  const { data: rawProperties, isLoading, error } = useQuery(api.properties.getRankedProperties, {
     maxBudget: debBudget,
     minBeds: debBeds,
     minBaths: debBaths
   });
+
+  // Filter and AI-rank properties based on current filter criteria
+  // IMPORTANT SECURITY NOTE: This AI scoring logic is executed client-side for display purposes only.
+  // For any authoritative decisions or data manipulation based on these scores, the logic MUST be
+  // replicated and validated on the backend to prevent client-side tampering and ensure data integrity.
+  const properties = rawProperties?.filter((property) => {
 
   // Filter and AI-rank properties based on current filter criteria
   const properties = rawProperties?.filter((property) => {
@@ -188,22 +195,22 @@ function App() {
 
   // Debounce the query arguments
   useEffect(() => {
-    const id = setTimeout(() => setDebBudget(budget), 300);
+    const id = setTimeout(() => setDebBudget(Math.max(0, budget)), 300); // Ensure non-negative budget
     return () => clearTimeout(id);
   }, [budget]);
 
   useEffect(() => {
-    const id = setTimeout(() => setDebBeds(minBeds), 300);
+    const id = setTimeout(() => setDebBeds(Math.max(0, minBeds)), 300); // Ensure non-negative beds
     return () => clearTimeout(id);
   }, [minBeds]);
 
   useEffect(() => {
-    const id = setTimeout(() => setDebBaths(minBaths), 300);
+    const id = setTimeout(() => setDebBaths(Math.max(0, minBaths)), 300); // Ensure non-negative baths
     return () => clearTimeout(id);
   }, [minBaths]);
 
   useEffect(() => {
-    const id = setTimeout(() => setDebSqft(minSqft), 300);
+    const id = setTimeout(() => setDebSqft(Math.max(0, minSqft)), 300); // Ensure non-negative sqft
     return () => clearTimeout(id);
   }, [minSqft]);
 
@@ -349,9 +356,17 @@ function App() {
         </div>
 
         {/* Results Summary */}
-        {properties !== undefined && (
+        {error ? (
+          <div className="mb-6 text-red-600 font-medium">
+            Error loading properties: {error.message || 'An unknown error occurred.'}
+          </div>
+        ) : isLoading ? (
           <div className="mb-6 text-sm text-gray-600">
-            Found {properties.length} properties matching your criteria
+            Loading properties...
+          </div>
+        ) : (
+          <div className="mb-6 text-sm text-gray-600">
+            Found {properties?.length || 0} properties matching your criteria
             {userZipCode && ' with distance calculations'}
           </div>
         )}
@@ -373,11 +388,18 @@ function App() {
         )}
 
         {/* Properties Grid */}
-        {properties === undefined ? (
+        {error ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="text-center">
+              <div className="text-lg text-red-500 mb-2">Failed to load properties</div>
+              <div className="text-sm text-red-400">Please try again later.</div>
+            </div>
+          </div>
+        ) : isLoading ? (
           <div className="flex justify-center items-center py-12">
             <div className="text-lg text-gray-500">Loading properties...</div>
           </div>
-        ) : properties.length === 0 ? (
+        ) : properties?.length === 0 ? (
           <div className="flex justify-center items-center py-12">
             <div className="text-center">
               <div className="text-lg text-gray-500 mb-2">No properties found</div>
@@ -386,7 +408,7 @@ function App() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="property-grid">
-            {properties.map((property: RankedProperty) => (
+            {properties?.map((property: RankedProperty) => ( // Use optional chaining here
               <PropertyCard 
                 key={property._id} 
                 property={property} 
