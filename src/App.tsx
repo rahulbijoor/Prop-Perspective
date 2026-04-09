@@ -336,7 +336,7 @@ function App() {
         <div className="mb-6 bg-white p-6 rounded-lg shadow-sm border">
           <div className="max-w-md">
             <LocationInput
-              onLocationSelect={setUserZipCode}
+              onLocationSelect={handleZipChange}
               label="Calculate Distance From"
               placeholder="Enter your ZIP code or neighborhood..."
             />
