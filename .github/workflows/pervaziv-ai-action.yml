@@ -15,7 +15,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: pervaziv/pervaziv-ai-code-review@main
+      - uses: jyothsnalade/cortex-action@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
