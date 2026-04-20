@@ -1,0 +1,22 @@
+name: Pervaziv AI Code Review
+
+on:
+  push:
+    branches:
+      - main        # runs on every push to main
+  schedule:
+    - cron: '0 0 * * *'    # runs every day at midnight UTC
+jobs:
+  pervaziv-ai-action:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: write     # create fix branch - downgrade to read if Auto Code Suggestion is disabled in Pervaziv console
+      pull-requests: write # open fix PR - remove if Auto Code Suggestion is disabled in Pervaziv console
+    steps:
+      - uses: jyothsnalade/cortex-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          console-url: https://console.pervaziv.com
