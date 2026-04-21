@@ -119,7 +119,7 @@ export class DebateService {
 
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('Unknown error');
-        console.warn(`⚠️ Debate service attempt ${attempt} failed:`, lastError.message);
+        console.warn(`⚠️ Debate service attempt ${attempt} failed: ${lastError.message}`);
 
         if (attempt < this.config.retries) {
           // Wait before retry (exponential backoff)
