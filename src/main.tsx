@@ -7,17 +7,26 @@ import ErrorBoundary from './components/ErrorBoundary'
 import './styles/global.css'
 
 
-const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
-if (!convexUrl) {
-  console.error('Missing VITE_CONVEX_URL. Set it in .env.local.');
-}
+const validateEnvironment = () => {
+  const missing = !import.meta.env.VITE_CONVEX_URL ? ['VITE_CONVEX_URL'] : [];
+  if (missing.length > 0) {
+    console.error(`Initialization Error: Missing environment variables: ${missing.join(', ')}`);
+    return false;
+  }
+  return true;
+};
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <ConvexProvider client={convex}>
-        <App />
-      </ConvexProvider>
-    </ErrorBoundary>
-  </React.StrictMode>,
-)
+const rootElement = document.getElementById('root');
+if (rootElement && validateEnvironment() && convex) {
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <ConvexProvider client={convex}>
+          <App />
+        </ConvexProvider>
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+} else {
+  console.error('Application initialization failed: check console for configuration or DOM errors.');
+}
