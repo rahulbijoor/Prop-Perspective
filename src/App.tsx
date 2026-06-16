@@ -13,7 +13,6 @@ import ComparisonTrigger from './components/ComparisonTrigger'
 import ErrorBoundary from './components/ErrorBoundary'
 import { DEFAULT_BUDGET, DEFAULT_MIN_BEDS, DEFAULT_MIN_BATHS, DEFAULT_MIN_SQFT } from './lib/utils'
 import useComparison from './hooks/useComparison'
-import { useComparison as useAIComparison } from './hooks/useComparison'
 
 import type { RankedProperty } from './types/property'
 import type { DebateResponse } from './types/debate'
@@ -41,6 +40,7 @@ function App() {
 
   // Comparison state
   const [activeComparison, setActiveComparison] = useState<ComparisonResponse | null>(null);
+  const [isLoadingComparison, setIsLoadingComparison] = useState(false);
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
 
   // View state
@@ -53,135 +53,65 @@ function App() {
     minBaths: debBaths
   });
 
-  // Filter and AI-rank properties based on current filter criteria
-  const properties = rawProperties?.filter((property) => {
-    // Filter by minimum square footage
-    if (debSqft > 0 && (!property.area || property.area < debSqft)) {
-      return false;
-    }
-    
-    // Filter by minimum bedrooms (already handled by query, but double-check)
-    if (debBeds > 0 && (!property.beds || property.beds < debBeds)) {
-      return false;
-    }
-    
-    return true;
-  }).map((property: any) => {
-    // AI-Powered Intelligent Scoring System
+  const calculateAiScore = (property: any, budget: number, minSqft: number, minBeds: number, minBaths: number) => {
     let aiScore = 0;
-    
-    // Declare variables for AI factor calculations
     let budgetRatio = 0;
     let pricePerSqft = 0;
     const austinAvgPricePsf = 300;
-    
-    // 🤖 AI Factor 1: Smart Budget Analysis (25% weight)
-    if (property.price && property.price <= debBudget) {
-      budgetRatio = property.price / debBudget;
-      // AI considers sweet spot around 80-90% of budget as optimal
-      if (budgetRatio >= 0.8 && budgetRatio <= 0.9) {
-        aiScore += 25; // Perfect budget utilization
-      } else if (budgetRatio < 0.8) {
-        aiScore += 20 + (0.8 - budgetRatio) * 10; // Bonus for being under budget
-      } else {
-        aiScore += 15; // Still good if within budget
-      }
+
+    if (property.price && property.price <= budget) {
+      budgetRatio = property.price / budget;
+      aiScore += (budgetRatio >= 0.8 && budgetRatio <= 0.9) ? 25 : (budgetRatio < 0.8 ? 20 + (0.8 - budgetRatio) * 10 : 15);
     }
-    
-    // 🤖 AI Factor 2: Space Intelligence (20% weight)
-    if (property.area && property.area >= debSqft) {
-      const spaceRatio = property.area / debSqft;
-      // AI considers 20-40% more space than minimum as ideal
-      if (spaceRatio >= 1.2 && spaceRatio <= 1.4) {
-        aiScore += 20; // Optimal space bonus
-      } else if (spaceRatio > 1.4) {
-        aiScore += 18; // Good but maybe too much space
-      } else {
-        aiScore += 15; // Meets minimum requirements
-      }
+
+    if (property.area && property.area >= minSqft) {
+      const spaceRatio = property.area / minSqft;
+      aiScore += (spaceRatio >= 1.2 && spaceRatio <= 1.4) ? 20 : (spaceRatio > 1.4 ? 18 : 15);
     }
-    
-    // 🤖 AI Factor 3: Layout Optimization (15% weight)
+
     if (property.beds && property.baths) {
-      const bedroomBathRatio = property.beds / property.baths;
-      // AI considers 1.5-2.5 bed/bath ratio as optimal
-      if (bedroomBathRatio >= 1.5 && bedroomBathRatio <= 2.5) {
-        aiScore += 15; // Optimal layout
-      } else {
-        aiScore += 10; // Acceptable layout
-      }
+      aiScore += (property.beds / property.baths >= 1.5 && property.beds / property.baths <= 2.5) ? 15 : 10;
     }
-    
-    // 🤖 AI Factor 4: Market Value Intelligence (20% weight)
+
     if (property.price && property.area && property.area > 0) {
       pricePerSqft = property.price / property.area;
-      // AI analyzes Austin market data (average ~$280-320/sqft)
       const marketEfficiency = (austinAvgPricePsf - pricePerSqft) / austinAvgPricePsf;
-      
-      if (marketEfficiency > 0.1) {
-        aiScore += 20; // Excellent value - significantly below market
-      } else if (marketEfficiency > 0) {
-        aiScore += 15; // Good value - below market average
-      } else if (marketEfficiency > -0.1) {
-        aiScore += 10; // Fair value - near market average
-      } else {
-        aiScore += 5; // Above market - premium property
-      }
+      aiScore += marketEfficiency > 0.1 ? 20 : marketEfficiency > 0 ? 15 : marketEfficiency > -0.1 ? 10 : 5;
     }
-    
-    // 🤖 AI Factor 5: Investment Potential (10% weight)
-    // AI considers location, size, and price for investment scoring
-    let investmentScore = 0;
-    if (property.addressCity?.toLowerCase().includes('austin')) {
-      investmentScore += 5; // Austin market bonus
-    }
-    if (property.area && property.area > 1000) {
-      investmentScore += 3; // Larger properties tend to appreciate better
-    }
-    if (property.beds && property.beds >= 2) {
-      investmentScore += 2; // Multi-bedroom properties have better rental potential
-    }
+
+    let investmentScore = (property.addressCity?.toLowerCase().includes('austin') ? 5 : 0) + (property.area > 1000 ? 3 : 0) + (property.beds >= 2 ? 2 : 0);
     aiScore += investmentScore;
-    
-    // 🤖 AI Factor 6: Lifestyle Compatibility (10% weight)
-    // AI analyzes how well property matches user preferences
-    let lifestyleScore = 0;
-    
-    // Reward properties that exceed user requirements intelligently
-    if (property.beds && property.beds > debBeds) {
-      lifestyleScore += Math.min((property.beds - debBeds) * 2, 5);
-    }
-    if (property.baths && property.baths > debBaths) {
-      lifestyleScore += Math.min((property.baths - debBaths) * 2, 5);
-    }
-    
+
+    let lifestyleScore = (property.beds > minBeds ? Math.min((property.beds - minBeds) * 2, 5) : 0) + (property.baths > minBaths ? Math.min((property.baths - minBaths) * 2, 5) : 0);
     aiScore += lifestyleScore;
-    
-    // 🤖 AI Enhancement: Incorporate original Convex scoring
-    if (property.score) {
-      aiScore += property.score * 20; // Blend with existing algorithm
-    }
-    
-    // 🤖 AI Normalization: Ensure score is between 0-100
-    const normalizedAiScore = Math.min(100, Math.max(0, aiScore));
-    
-    return {
-      ...property,
-      aiScore: Math.round(normalizedAiScore * 100) / 100,
-      aiRankingFactors: {
-        budgetAnalysis: budgetRatio ? Math.round((budgetRatio >= 0.8 && budgetRatio <= 0.9 ? 25 : 20) * 100) / 100 : 0,
-        spaceIntelligence: property.area ? Math.round((property.area / debSqft >= 1.2 ? 20 : 15) * 100) / 100 : 0,
-        layoutOptimization: property.beds && property.baths ? 15 : 0,
-        marketValue: pricePerSqft ? Math.round(((austinAvgPricePsf - pricePerSqft) / austinAvgPricePsf > 0.1 ? 20 : 15) * 100) / 100 : 0,
-        investmentPotential: investmentScore,
-        lifestyleMatch: lifestyleScore
-      }
-    };
-  }).sort((a: any, b: any) => (b.aiScore || 0) - (a.aiScore || 0)) // Sort by AI score
-  .map((property: any, index: number) => ({
-    ...property,
-    rank: index + 1 // Assign new rank based on AI scoring
-  }));
+
+    if (property.score) aiScore += property.score * 20;
+
+    return { score: Math.round(Math.min(100, Math.max(0, aiScore)) * 100) / 100, investmentScore, lifestyleScore, budgetRatio, pricePerSqft };
+  };
+
+  const properties = useMemo(() => {
+    if (!rawProperties) return undefined;
+    return rawProperties
+      .filter((p: any) => (!debSqft || (p.area && p.area >= debSqft)) && (!debBeds || (p.beds && p.beds >= debBeds)))
+      .map((p: any) => {
+        const { score, investmentScore, lifestyleScore, budgetRatio, pricePerSqft } = calculateAiScore(p, debBudget, debSqft, debBeds, debBaths);
+        return {
+          ...p,
+          aiScore: score,
+          aiRankingFactors: {
+            budgetAnalysis: budgetRatio ? Math.round((budgetRatio >= 0.8 && budgetRatio <= 0.9 ? 25 : 20) * 100) / 100 : 0,
+            spaceIntelligence: p.area ? Math.round((p.area / debSqft >= 1.2 ? 20 : 15) * 100) / 100 : 0,
+            layoutOptimization: 15,
+            marketValue: pricePerSqft ? Math.round(((300 - pricePerSqft) / 300 > 0.1 ? 20 : 15) * 100) / 100 : 0,
+            investmentPotential: investmentScore,
+            lifestyleMatch: lifestyleScore
+          }
+        } as RankedProperty;
+      })
+      .sort((a, b) => b.aiScore - a.aiScore)
+      .map((p, i) => ({ ...p, rank: i + 1 }));
+  }, [rawProperties, debBudget, debSqft, debBeds, debBaths]);
 
   // Comparison functionality
   const comparison = useComparison(properties || []);
