@@ -123,7 +123,7 @@ export class ComparisonService {
 
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('Unknown error');
-        console.warn(`⚠️ Comparison service attempt ${attempt} failed:`, lastError.message);
+        console.warn(`⚠️ Comparison service attempt ${attempt} failed: ${lastError.message}`);
 
         if (attempt < this.config.retries) {
           // Wait before retry (exponential backoff)
@@ -183,7 +183,7 @@ export class ComparisonService {
       clearTimeout(timeoutId);
 
       const isHealthy = response.ok;
-      console.log(`${isHealthy ? '✅' : '❌'} Comparison service health check:`, isHealthy ? 'OK' : 'Failed');
+      console.log(`${isHealthy ? '✅' : '❌'} Comparison service health check: `, isHealthy ? 'OK' : 'Failed');
 
       return isHealthy;
 

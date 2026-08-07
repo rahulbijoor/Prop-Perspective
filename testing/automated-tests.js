@@ -301,7 +301,8 @@ async function testPerformanceBenchmarks() {
       const start = Date.now();
       await page.goto(CONFIG.baseUrl, { 
         waitUntil: 'networkidle0',
-        timeout: CONFIG.timeout 
+        timeout: CONFIG.timeout,
+        ignoreHTTPErrors: true
       });
       loadTimes.push(Date.now() - start);
       await sleep(1000);
@@ -487,7 +488,7 @@ async function testErrorHandling() {
     // Test network offline simulation
     await page.setOfflineMode(true);
     try {
-      await page.goto(CONFIG.baseUrl, { timeout: 5000 });
+      await page.goto(CONFIG.baseUrl, { timeout: 5000, waitUntil: 'domcontentloaded' });
       logTest('Offline Mode Handling', 'FAIL', 0, 'Should have failed in offline mode');
     } catch (error) {
       logTest('Offline Mode Handling', 'PASS', 0, 'Correctly handled offline mode');

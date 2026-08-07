@@ -119,12 +119,12 @@ export function logHttpOperation(
   };
 
   if (result.success) {
-    console.info(`HTTP ${operation} succeeded`, JSON.stringify(logData));
+    console.info(`HTTP ${operation} succeeded: `, logData);
   } else {
-    console.error(`HTTP ${operation} failed`, JSON.stringify({
+    console.error(`HTTP ${operation} failed: `, {
       ...logData,
       error: result.error,
-    }));
+    });
   }
 }
 
